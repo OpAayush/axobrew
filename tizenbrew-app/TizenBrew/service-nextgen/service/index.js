@@ -11,7 +11,7 @@ module.exports.onStart = function () {
     const { loadModules, loadDevModule } = require('./utils/moduleLoader.js');
     const startDebugging = require('./utils/debugger.js');
     const startService = require('./utils/serviceLauncher.js');
-    const { getDevResourceUrl } = require('./utils/devServer.js');
+    const { getDevResourceUrl, getDevServerConfig } = require('./utils/devServer.js');
     const { Connection, Events } = require('./utils/wsCommunication.js');
     let WebSocket;
     if (process.version === 'v4.4.3') {
@@ -43,6 +43,7 @@ module.exports.onStart = function () {
             const fetchUrl = moduleName.indexOf('dev/') === 0
                 ? getDevResourceUrl(modulePath)
                 : `https://cdn.jsdelivr.net/${moduleName}/${modulePath}${modulePath.includes('?') ? '&' : '?'}v=${Date.now()}`;
+            if (!fetchUrl) return res.status(404).end();
             fetch(fetchUrl)
                 .then(fetchRes => {
                     return fetchRes.body.pipe(res);
@@ -50,6 +51,9 @@ module.exports.onStart = function () {
                 .then(() => {
                     res.setHeader('Access-Control-Allow-Origin', '*');
                     res.type(path.basename(modulePath).split('.').slice(-1)[0].split('?')[0]);
+                })
+                .catch(() => {
+                    res.status(502).end();
                 });
         } else {
             res.send(deviceIP);
@@ -103,6 +107,36 @@ module.exports.onStart = function () {
             const fullList = devModule ? modules.concat(devModule) : modules;
             modulesCache = fullList;
             return fullList;
+        });
+    };
+
+    // GetModules broadcasts the module list together with the current dev
+    // server configuration, so the Settings UI can show and edit it.
+    const getModulesPayload = (modules) => {
+        return {
+            modules: modules,
+            devServer: getDevServerConfig()
+        };
+    };
+
+    // Serialize reloads: pressing reload multiple times (or reloading while
+    // opening a module) must not start overlapping fetches against the dev
+    // server. One reload at a time; a pending one is coalesced.
+    let reloadingModules = false;
+    let reloadQueued = false;
+    const reloadModulesAndSend = (wsConn) => {
+        if (reloadingModules) {
+            reloadQueued = true;
+            return;
+        }
+        reloadingModules = true;
+        reloadModules().then(modules => {
+            reloadingModules = false;
+            wsConn.send(wsConn.Event(Events.GetModules, getModulesPayload(modules)));
+            if (reloadQueued) {
+                reloadQueued = false;
+                reloadModulesAndSend(wsConn);
+            }
         });
     };
 
@@ -263,10 +297,26 @@ module.exports.onStart = function () {
                     services.set('wsConn', wsConn);
 
                     if (payload) {
-                        reloadModules().then(modules => {
-                            wsConn.send(wsConn.Event(Events.GetModules, modules));
-                        });
-                    } else wsConn.send(wsConn.Event(Events.GetModules, modulesCache));
+                        reloadModulesAndSend(wsConn);
+                    } else wsConn.send(wsConn.Event(Events.GetModules, getModulesPayload(modulesCache)));
+                    break;
+                }
+                case Events.SetDevServer: {
+                    const config = readConfig();
+                    config.devServer = {
+                        enabled: payload.enabled !== false,
+                        host: typeof payload.host === 'string' && payload.host.trim() ? payload.host.trim() : '192.168.1.99',
+                        port: (Number(payload.port) > 0 && Number(payload.port) < 65536) ? Number(payload.port) : 8080
+                    };
+                    try {
+                        writeConfig(config);
+                    } catch (e) {
+                        console.error('Failed to save dev server config. ' + e);
+                    }
+                    console.log('Dev server config updated: ' + JSON.stringify(config.devServer));
+                    // Refresh the module list so the dev module appears or
+                    // disappears immediately based on the new settings.
+                    reloadModulesAndSend(wsConn);
                     break;
                 }
                 case Events.LaunchModule: {

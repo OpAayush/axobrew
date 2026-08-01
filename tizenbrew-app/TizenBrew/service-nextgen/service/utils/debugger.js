@@ -12,9 +12,44 @@ const modulesCache = new Map();
 // every page load), regular modules by jsDelivr (cached).
 const { getDevResourceUrl } = require('./devServer.js');
 
+const moduleScriptCache = {
+    dev: null,
+    at: 0
+};
+
+function fetchWithTimeout(url, ms) {
+    return Promise.race([
+        fetch(url),
+        new Promise((resolve, reject) => setTimeout(() => reject(new Error('Fetch timed out: ' + url)), ms))
+    ]);
+}
+
 function getModuleScriptUrl(mdl) {
     if (mdl.dev) return getDevResourceUrl(mdl.mainFile || 'dist/userScript.js');
     return `https://cdn.jsdelivr.net/${mdl.fullName}/${mdl.mainFile}?v=${Date.now()}`;
+}
+
+// A single page load creates several execution contexts in quick succession.
+// For the dev module, share one fetch for ~5 seconds so the dev server is
+// never flooded with duplicate user script requests (which made loading
+// flaky, especially right after a module reload). Regular modules keep
+// fetching per context but with a timeout.
+function getModuleScript(mdl) {
+    if (mdl.dev && moduleScriptCache.dev && Date.now() - moduleScriptCache.at < 5000) {
+        return Promise.resolve(moduleScriptCache.dev);
+    }
+    const fetchOnce = () => fetchWithTimeout(getModuleScriptUrl(mdl), mdl.dev ? 10000 : 15000)
+        .then(res => res.text());
+    const attempt = mdl.dev
+        ? fetchOnce().catch(() => new Promise(resolve => setTimeout(resolve, 750)).then(fetchOnce))
+        : fetchOnce();
+    return attempt.then(text => {
+        if (mdl.dev) {
+            moduleScriptCache.dev = text;
+            moduleScriptCache.at = Date.now();
+        }
+        return text;
+    });
 }
 
 function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appControlData, isAnotherApp, attempts) {
@@ -31,7 +66,7 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
                     if (cache) {
                         client.Runtime.evaluate({ expression: cache, contextId: msg.context.id });
                     } else {
-                        fetch(getModuleScriptUrl(mdl)).then(res => res.text()).then(modFile => {
+                        getModuleScript(mdl).then(modFile => {
                             modulesCache.set(mdl.fullName, modFile);
                             client.Runtime.evaluate({ expression: modFile, contextId: msg.context.id });
                         }).catch(e => {
@@ -45,7 +80,7 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
                         client.Page.addScriptToEvaluateOnNewDocument({ expression: cache });
                         sendClientInformation(clientConn, clientConnection.Event(Events.LaunchModule, mdl.name));
                     } else {
-                        fetch(getModuleScriptUrl(mdl)).then(res => res.text()).then(modFile => {
+                        getModuleScript(mdl).then(modFile => {
                             modulesCache.set(mdl.fullName, modFile);
                             sendClientInformation(clientConn, clientConnection.Event(Events.LaunchModule, mdl.name));
                             client.Page.addScriptToEvaluateOnNewDocument({ expression: modFile });

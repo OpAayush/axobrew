@@ -15,7 +15,7 @@ function Item({ children, module, id, state, shouldFocus }) {
   useEffect(() => {
     if (focused) {
       ref.current.scrollIntoView({
-        behavior: 'smooth',
+        behavior: 'auto',
         block: 'center',
         inline: 'center',
       });

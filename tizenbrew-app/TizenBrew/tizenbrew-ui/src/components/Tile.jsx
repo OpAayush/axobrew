@@ -9,7 +9,7 @@ export default function Tile({ children, onClick, shouldFocus, extra }) {
     useEffect(() => {
         if (focused) {
             ref.current.scrollIntoView({
-                behavior: 'smooth',
+                behavior: 'auto',
                 block: 'center',
                 inline: 'center',
             });

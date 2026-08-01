@@ -10,7 +10,8 @@ const Events = {
     GetServiceStatuses: 7,
     Error: 8,
     CanLaunchModules: 9,
-    ModuleAction: 10
+    ModuleAction: 10,
+    SetDevServer: 11
 };
 
 class Client {
@@ -127,12 +128,22 @@ class Client {
                     return setTimeout(() => this.send({ type: Events.GetModules }), 500);
                 }
 
+                const moduleList = Array.isArray(payload) ? payload : payload.modules;
+                const devServer = Array.isArray(payload) ? null : (payload.devServer || null);
+
+                if (devServer) {
+                    this.context.dispatch({
+                        type: 'SET_DEV_SERVER',
+                        payload: devServer
+                    });
+                }
+
                 this.context.dispatch({
                     type: 'SET_MODULES',
-                    payload
+                    payload: moduleList
                 });
 
-                this.modules = payload;
+                this.modules = moduleList;
                 this.modulesLoaded = true;
 
                 this.send({

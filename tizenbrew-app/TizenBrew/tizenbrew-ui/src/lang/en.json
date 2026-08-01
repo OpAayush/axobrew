@@ -39,7 +39,9 @@
     "uaNegativeEffects": "Note that while this could have positive effects, there could also be negative effects.",
     "language": "Language Settings",
     "languageDesc": "Change the language of the app.",
-    "current": "Current"
+    "current": "Current",
+    "devServer": "Dev Server",
+    "devServerDesc": "Configure the local development server that serves your module"
   },
   "__contributors": [
     "reisxd"
@@ -53,5 +55,15 @@
     "appVersion": "App Version",
     "tizenVersion": "Tizen Version",
     "tvModel": "TV Model"
+  },
+  "devServer": {
+    "enabled": "Dev Server",
+    "enabledDesc": "Load the dev module from the local server",
+    "host": "Server Host",
+    "port": "Server Port",
+    "save": "Save",
+    "saved": "Saved",
+    "on": "ON",
+    "off": "OFF"
   }
 }

@@ -1,5 +1,5 @@
 const { readConfig } = require('./configuration.js');
-const { isDev, getDevPackageJsonUrl } = require('./devServer.js');
+const { isDevServerEnabled, getDevPackageJsonUrl } = require('./devServer.js');
 const fetch = require('node-fetch');
 
 function fetchWithTimeout(url, ms) {
@@ -97,8 +97,10 @@ function loadModules() {
 // and never from jsDelivr. If the dev server is unreachable it is silently
 // skipped (null) - no error is shown and it is not listed in the UI.
 function loadDevModule() {
-    if (!isDev) return Promise.resolve(null);
-    return fetchWithTimeout(getDevPackageJsonUrl(), 8000)
+    if (!isDevServerEnabled()) return Promise.resolve(null);
+    const devPackageJsonUrl = getDevPackageJsonUrl();
+    if (!devPackageJsonUrl) return Promise.resolve(null);
+    return fetchWithTimeout(devPackageJsonUrl, 8000)
         .then(res => res.json())
         .then(moduleJson => {
             const moduleData = buildModuleData(`dev/${moduleJson.name || 'dev'}`, moduleJson);

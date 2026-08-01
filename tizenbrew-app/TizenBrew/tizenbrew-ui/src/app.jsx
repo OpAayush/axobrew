@@ -11,6 +11,7 @@ import About from './pages/About.jsx';
 import './components/i18n.js';
 import UserAgentSettings from './pages/UserAgentSettings.jsx';
 import LanguageSettings from './pages/LanguageSettings.jsx';
+import DevServerSettings from './pages/DevServerSettings.jsx';
 import { ExclamationCircleIcon } from '@heroicons/react/16/solid';
 import { useTranslation } from 'react-i18next';
 
@@ -68,6 +69,7 @@ export default function App() {
             <Route component={Change} path="/tizenbrew-ui/dist/index.html/settings/change" />
             <Route component={UserAgentSettings} path="/tizenbrew-ui/dist/index.html/settings/change-ua" />
             <Route component={LanguageSettings} path="/tizenbrew-ui/dist/index.html/settings/language" />
+            <Route component={DevServerSettings} path="/tizenbrew-ui/dist/index.html/settings/devserver" />
             <Route component={About} path="/tizenbrew-ui/dist/index.html/about" />
           </Router>
         </div>

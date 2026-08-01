@@ -1,6 +1,6 @@
-import { Cog6ToothIcon, ArchiveBoxIcon, HomeIcon, QuestionMarkCircleIcon, ArrowPathIcon } from '@heroicons/react/16/solid';
+import { Cog6ToothIcon, ArchiveBoxIcon, HomeIcon, QuestionMarkCircleIcon, ArrowPathIcon, CheckCircleIcon } from '@heroicons/react/16/solid';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
-import { useEffect, useContext } from 'preact/hooks';
+import { useState, useEffect, useContext } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import { GlobalStateContext } from './ClientContext.jsx';
 import TBLogo from '../assets/tizenbrew.svg';
@@ -20,7 +20,7 @@ function Button({ children, route, focus, focusKey, action }) {
         <button
             ref={ref}
             focusKey={focus ? 'sn:focusable-item-1' : focusKey}
-            className={`tile flex items-center justify-center h-[5.5vh] w-[5.5vh] rounded-xl bg-white/5 ring-1 ring-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:ring-white/25 transition ${focused ? 'focus' : ''}`}
+            className={`tile flex items-center justify-center h-[5.5vh] w-[5.5vh] rounded-xl bg-white/5 ring-1 ring-white/10 text-gray-300 hover:bg-white/10 hover:text-white hover:ring-white/25 ${focused ? 'focus' : ''}`}
             onClick={() => (action ? action() : location.route(`/tizenbrew-ui/dist/index.html${route}`))}
         >
             {children}
@@ -30,6 +30,13 @@ function Button({ children, route, focus, focusKey, action }) {
 export default function Header() {
     const { state } = useContext(GlobalStateContext);
     const { t } = useTranslation();
+    const [reloaded, setReloaded] = useState(false);
+
+    useEffect(() => {
+        if (!reloaded) return;
+        const timeout = setTimeout(() => setReloaded(false), 2500);
+        return () => clearTimeout(timeout);
+    }, [reloaded]);
 
     const serviceState = state?.sharedData?.state;
     const dotColor = serviceState === 'service.connected'
@@ -54,7 +61,7 @@ export default function Header() {
                 </div>
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-3 rounded-full bg-white/5 px-5 py-2 ring-1 ring-white/10">
-                        <span className={`h-[1.4vh] w-[1.4vh] rounded-full ${dotColor} ${!serviceState ? 'animate-pulse' : ''}`} />
+                        <span className={`h-[1.4vh] w-[1.4vh] rounded-full ${dotColor}`} />
                         <span className="text-[1.9vh] text-gray-300">
                             {t(serviceState || '...')}
                         </span>
@@ -72,8 +79,15 @@ export default function Header() {
                         <Button route="/about">
                             <QuestionMarkCircleIcon className="h-[3.2vh] w-[3.2vh]" />
                         </Button>
-                        <Button action={() => state.client?.send({ type: Events.GetModules, payload: true })}>
-                            <ArrowPathIcon className="h-[3.2vh] w-[3.2vh]" />
+                        <Button action={() => {
+                            state.client?.send({ type: Events.GetModules, payload: true });
+                            setReloaded(true);
+                        }}>
+                            {reloaded ? (
+                                <CheckCircleIcon className="h-[3.2vh] w-[3.2vh] text-brew-cyan" />
+                            ) : (
+                                <ArrowPathIcon className="h-[3.2vh] w-[3.2vh]" />
+                            )}
                         </Button>
                     </div>
                 </div>

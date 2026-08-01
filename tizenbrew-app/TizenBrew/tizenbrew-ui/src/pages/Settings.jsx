@@ -4,7 +4,7 @@ import { GlobalStateContext } from '../components/ClientContext.jsx';
 import { Events } from '../components/WebSocketClient.js';
 import { useLocation } from 'preact-iso';
 import { useTranslation } from 'react-i18next';
-import { Cog6ToothIcon, RocketLaunchIcon, ArrowPathIcon, GlobeAltIcon } from '@heroicons/react/16/solid';
+import { Cog6ToothIcon, RocketLaunchIcon, ArrowPathIcon, GlobeAltIcon, ServerIcon } from '@heroicons/react/16/solid';
 import Tile from '../components/Tile.jsx';
 
 function SettingTile({ icon, iconColor, title, desc, onClick, shouldFocus }) {
@@ -64,6 +64,14 @@ export default function Settings() {
                     desc={t('settings.languageDesc')}
                     onClick={() => {
                         loc.route('/tizenbrew-ui/dist/index.html/settings/language');
+                    }}
+                />
+                <SettingTile
+                    icon={<ServerIcon className='h-[4.5vh] w-[4.5vh] text-brew-cyan' />}
+                    title={t('settings.devServer')}
+                    desc={t('settings.devServerDesc')}
+                    onClick={() => {
+                        loc.route('/tizenbrew-ui/dist/index.html/settings/devserver');
                     }}
                 />
             </div>
