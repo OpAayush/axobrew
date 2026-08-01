@@ -165,6 +165,7 @@ module.exports.onStart = function () {
         currentModule.mainFile = module.mainFile;
         currentModule.tizenAppId = module.tizenAppId;
         currentModule.evaluateScriptOnDocumentStart = module.evaluateScriptOnDocumentStart;
+        currentModule.dev = module.dev;
 
         console.log('Auto-launching module: ' + config.autoLaunchModule);
         setTimeout(() => createAdbConnection('127.0.0.1', currentModule), 20000);
@@ -276,6 +277,7 @@ module.exports.onStart = function () {
                     currentModule.moduleType = mdl.moduleType;
                     currentModule.packageType = mdl.packageType;
                     currentModule.serviceFile = mdl.serviceFile;
+                    currentModule.dev = mdl.dev;
 
                     if (mdl.packageType === 'app') {
                         inDebug.webDebug = false;
