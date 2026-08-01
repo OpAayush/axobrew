@@ -5,6 +5,7 @@ module.exports.onStart = function () {
     const adbhost = require('adbhost');
     const express = require('express');
     const fetch = require('node-fetch');
+    const fs = require('fs');
     const path = require('path');
     const { readConfig, writeConfig } = require('./utils/configuration.js');
     const loadModules = require('./utils/moduleLoader.js');
@@ -104,9 +105,51 @@ module.exports.onStart = function () {
                     if (service) startService(service, services);
                 });
             }
+            autoLaunchModuleAtBoot();
         });
     };
     loadModulesWithRetry();
+
+
+    // On older Tizen models (e.g. Tizen 4) the TV never auto-runs the
+    // TizenBrew app at boot, so the module auto-launch chain (which needs the
+    // app running in debug mode) never starts. The system does start this
+    // service periodically, so the service kicks off the debug relaunch
+    // itself: the app opens, the debugger attaches and auto-launches the
+    // configured module. A timestamp file prevents re-triggering on service
+    // restarts/crashes (module would interrupt what the user is watching).
+    const autoLaunchModuleAtBoot = () => {
+        const config = readConfig();
+        if (!config.autoLaunchModule) return;
+        if (inDebug.tizenDebug || inDebug.webDebug) return;
+
+        const autoLaunchTimePath = '/home/owner/share/tizenbrewAutoLaunchTime';
+        try {
+            if (fs.existsSync(autoLaunchTimePath)) {
+                const lastLaunch = Number(fs.readFileSync(autoLaunchTimePath, 'utf8')) || 0;
+                if (Date.now() - lastLaunch < 3600000) return;
+            }
+            fs.writeFileSync(autoLaunchTimePath, String(Date.now()));
+        } catch (e) {
+            console.error('autoLaunch time file error. ' + e);
+        }
+
+        const module = modulesCache.find(m => m.fullName === config.autoLaunchModule);
+        if (!module) return;
+
+        currentModule.fullName = module.fullName;
+        currentModule.name = module.name;
+        currentModule.appPath = module.appPath;
+        currentModule.moduleType = module.moduleType;
+        currentModule.packageType = module.packageType;
+        currentModule.serviceFile = module.serviceFile;
+        currentModule.mainFile = module.mainFile;
+        currentModule.tizenAppId = module.tizenAppId;
+        currentModule.evaluateScriptOnDocumentStart = module.evaluateScriptOnDocumentStart;
+
+        console.log('Auto-launching module: ' + config.autoLaunchModule);
+        setTimeout(() => createAdbConnection('127.0.0.1', currentModule), 20000);
+    };
 
 
     function createAdbConnection(ip, mdl) {
