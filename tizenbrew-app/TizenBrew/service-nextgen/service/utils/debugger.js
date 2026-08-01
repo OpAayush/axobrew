@@ -8,12 +8,12 @@ const WebSocket = require('ws');
 
 const modulesCache = new Map();
 
-// When developing a module, serve the user script from a local dev server
-// instead of jsDelivr (see devServer.js).
-const { isDev, getUserScriptUrl } = require('./devServer.js');
+// The dev module's user script is served by the local dev server (fresh on
+// every page load), regular modules by jsDelivr (cached).
+const { getDevResourceUrl } = require('./devServer.js');
 
 function getModuleScriptUrl(mdl) {
-    if (isDev) return getUserScriptUrl();
+    if (mdl.dev) return getDevResourceUrl(mdl.mainFile || 'dist/userScript.js');
     return `https://cdn.jsdelivr.net/${mdl.fullName}/${mdl.mainFile}?v=${Date.now()}`;
 }
 
@@ -27,7 +27,7 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
 
             client.on('Runtime.executionContextCreated', (msg) => {
                 if (!mdl.evaluateScriptOnDocumentStart && mdl.name !== '') {
-                    const cache = isDev ? null : modulesCache.get(mdl.fullName);
+                    const cache = mdl.dev ? null : modulesCache.get(mdl.fullName);
                     if (cache) {
                         client.Runtime.evaluate({ expression: cache, contextId: msg.context.id });
                     } else {
@@ -39,7 +39,7 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
                         });
                     }
                 } else if (mdl.name !== '' && mdl.evaluateScriptOnDocumentStart) {
-                    const cache = isDev ? null : modulesCache.get(mdl.fullName);
+                    const cache = mdl.dev ? null : modulesCache.get(mdl.fullName);
                     const clientConnection = clientConn.get('wsConn');
                     if (cache) {
                         client.Page.addScriptToEvaluateOnNewDocument({ expression: cache });

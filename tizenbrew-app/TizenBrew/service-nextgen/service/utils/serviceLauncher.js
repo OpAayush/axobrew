@@ -2,6 +2,7 @@
 
 const vm = require('vm');
 const fetch = require('node-fetch');
+const { getDevResourceUrl } = require('./devServer.js');
 
 function startService(mdl, services) {
     let sandbox = {};
@@ -17,7 +18,10 @@ function startService(mdl, services) {
     sandbox['tizen'] = global.tizen;
     sandbox['module'] = { exports: {} };
 
-    fetch(`https://cdn.jsdelivr.net/${mdl.fullName}/${mdl.serviceFile}?v=${Date.now()}`)
+    const serviceUrl = mdl.dev
+        ? getDevResourceUrl(mdl.serviceFile)
+        : `https://cdn.jsdelivr.net/${mdl.fullName}/${mdl.serviceFile}?v=${Date.now()}`;
+    fetch(serviceUrl)
         .then(res => res.text())
         .then(script => {
             services.set(mdl.fullName, {

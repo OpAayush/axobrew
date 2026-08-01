@@ -8,9 +8,10 @@ module.exports.onStart = function () {
     const fs = require('fs');
     const path = require('path');
     const { readConfig, writeConfig } = require('./utils/configuration.js');
-    const loadModules = require('./utils/moduleLoader.js');
+    const { loadModules, loadDevModule } = require('./utils/moduleLoader.js');
     const startDebugging = require('./utils/debugger.js');
     const startService = require('./utils/serviceLauncher.js');
+    const { getDevResourceUrl } = require('./utils/devServer.js');
     const { Connection, Events } = require('./utils/wsCommunication.js');
     let WebSocket;
     if (process.version === 'v4.4.3') {
@@ -32,8 +33,12 @@ module.exports.onStart = function () {
             const encodedModuleName = splittedUrl[2];
             const moduleName = decodeURIComponent(encodedModuleName);
             const modulePath = req.url.replace(`/module/${encodedModuleName}/`, '');
-            const cacheBust = modulePath.includes('?') ? '&' : '?';
-            fetch(`https://cdn.jsdelivr.net/${moduleName}/${modulePath}${cacheBust}v=${Date.now()}`)
+            // Dev modules are served exclusively by the local dev server,
+            // regular modules by their published source.
+            const fetchUrl = moduleName.indexOf('dev/') === 0
+                ? getDevResourceUrl(modulePath)
+                : `https://cdn.jsdelivr.net/${moduleName}/${modulePath}${modulePath.includes('?') ? '&' : '?'}v=${Date.now()}`;
+            fetch(fetchUrl)
                 .then(fetchRes => {
                     return fetchRes.body.pipe(res);
                 })
@@ -86,12 +91,21 @@ module.exports.onStart = function () {
         args: null
     };
 
-    // Load the module list. If the network or the dev server is not up yet
-    // (TV just booted, older models), keep retrying in the background instead
-    // of leaving the service with an empty module list.
+    // Load the regular modules and the independent dev module (if the dev
+    // server answers - otherwise it is silently skipped, no error, not listed).
+    const reloadModules = () => {
+        return Promise.all([loadModules(), loadDevModule()]).then(([modules, devModule]) => {
+            const fullList = devModule ? modules.concat(devModule) : modules;
+            modulesCache = fullList;
+            return fullList;
+        });
+    };
+
+    // If the network is not up yet (TV just booted, older models), keep
+    // retrying in the background instead of leaving the service with an
+    // empty module list.
     const loadModulesWithRetry = () => {
-        loadModules().then(modules => {
-            modulesCache = modules;
+        reloadModules().then(modules => {
             const hasRealModule = modules.some(m => m.appName !== 'Unknown Module');
             if (!hasRealModule) {
                 console.error('No modules could be loaded. Retrying in 30 seconds.');
@@ -243,8 +257,7 @@ module.exports.onStart = function () {
                     services.set('wsConn', wsConn);
 
                     if (payload) {
-                        loadModules().then(modules => {
-                            modulesCache = modules;
+                        reloadModules().then(modules => {
                             wsConn.send(wsConn.Event(Events.GetModules, modules));
                         });
                     } else wsConn.send(wsConn.Event(Events.GetModules, modulesCache));

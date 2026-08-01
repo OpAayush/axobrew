@@ -5,11 +5,17 @@ const isDev = DEV_SERVER_URL.length > 0;
 
 module.exports = {
     isDev,
-    getUserScriptUrl() {
-        return `${DEV_SERVER_URL}/dist/userScript.js?v=${Date.now()}`;
+    // All resources of the dev module (package.json, user script, service
+    // file, extra assets) are served exclusively by the local dev server.
+    getDevResourceUrl(resourcePath) {
+        const resource = resourcePath || '';
+        const cacheBust = resource.includes('?') ? '&' : '?';
+        return `${DEV_SERVER_URL}/${resource}${cacheBust}v=${Date.now()}`;
     },
-    getPackageJsonUrl(module) {
-        if (!isDev) return `https://cdn.jsdelivr.net/${module}/package.json?v=${Date.now()}`;
-        return `${DEV_SERVER_URL}/package.json?v=${Date.now()}`;
+    getUserScriptUrl() {
+        return module.exports.getDevResourceUrl('dist/userScript.js');
+    },
+    getDevPackageJsonUrl() {
+        return module.exports.getDevResourceUrl('package.json');
     }
 };
