@@ -31,7 +31,12 @@ module.exports.onStart = function () {
         if (req.url.startsWith('/module/')) {
             const splittedUrl = req.url.split('/');
             const encodedModuleName = splittedUrl[2];
-            const moduleName = decodeURIComponent(encodedModuleName);
+            let moduleName;
+            try {
+                moduleName = decodeURIComponent(encodedModuleName);
+            } catch (e) {
+                return res.status(400).end();
+            }
             const modulePath = req.url.replace(`/module/${encodedModuleName}/`, '');
             // Dev modules are served exclusively by the local dev server,
             // regular modules by their published source.

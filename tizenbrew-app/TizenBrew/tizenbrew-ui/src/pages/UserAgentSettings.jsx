@@ -1,6 +1,6 @@
-import { useFocusable } from "@noriginmedia/norigin-spatial-navigation";
 import { useTranslation } from "react-i18next";
-import { useEffect } from "react";
+import { ArrowUturnLeftIcon, CpuChipIcon } from "@heroicons/react/16/solid";
+import Tile from "../components/Tile.jsx";
 
 const UserAgents = [
     {
@@ -43,42 +43,6 @@ const UserAgents = [
     }
 ];
 
-function classNames(...classes) {
-    return classes.filter(Boolean).join(' ')
-}
-
-function ItemBasic({ children, onClick, shouldFocus }) {
-    const { ref, focused, focusSelf } = useFocusable();
-    useEffect(() => {
-        if (focused) {
-            ref.current.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center',
-                inline: 'center',
-            });
-        }
-    }, [focused, ref]);
-
-    if (shouldFocus) {
-        useEffect(() => {
-            focusSelf();
-        }, [ref]);
-    }
-
-    return (
-        <div
-            ref={ref}
-            onClick={onClick}
-            className={classNames(
-                'relative bg-gray-900 shadow-2xl rounded-3xl p-8 ring-1 ring-gray-900/10 sm:p-10 h-[35vh] w-[20vw]',
-                focused ? 'focus' : '',
-            )}
-        >
-            {children}
-        </div>
-    );
-}
-
 export default function UserAgentSettings() {
     const { t } = useTranslation();
     return (
@@ -86,32 +50,36 @@ export default function UserAgentSettings() {
             <div className="mx-auto flex flex-wrap justify-center gap-4 top-4 relative">
                 {UserAgents.map((ua, idx) => {
                     return (
-                        <ItemBasic key={idx} onClick={() => {
+                        <Tile key={idx} onClick={() => {
                             const userAgent = typeof ua.userAgent === 'function' ? ua.userAgent() : ua.userAgent;
                             if (confirm(`${t('settings.setUaTo', { userAgent: userAgent })}\n\n${t('settings.uaNegativeEffects')}`)) {
                                 localStorage.setItem('userAgent', userAgent);
                                 alert(t('settings.uaSetRelaunch'));
                                 tizen.application.getCurrentApplication().exit();
                             }
-                        }} shouldFocus={idx === 0}>
-                            <h3 className='text-indigo-400 text-base/7 font-semibold'>
-                                {t(ua.name)}
-                            </h3>
-                            <p className='text-gray-300 mt-6 text-base/7'>
+                        }} shouldFocus={idx === 0} extra='flex flex-col'>
+                            <div className='flex items-center gap-3'>
+                                <CpuChipIcon className='h-[4vh] w-[4vh] text-brew-cyan' />
+                                <h3 className='text-white text-[2.6vh] font-semibold leading-tight'>
+                                    {t(ua.name)}
+                                </h3>
+                            </div>
+                            <p className='text-gray-400 text-[2vh] mt-4'>
                                 {ua.worksOnTizen ? t('settings.worksOnTizen', { version: ua.worksOnTizen }) : ''}
                             </p>
-                        </ItemBasic>
+                        </Tile>
                     )
                 })}
-                <ItemBasic onClick={() => {
+                <Tile onClick={() => {
                     localStorage.removeItem('userAgent');
                     alert(t('settings.uaSetRelaunch'));
                     tizen.application.getCurrentApplication().exit();
-                }}>
-                    <h3 className='text-indigo-400 text-base/7 font-semibold'>
+                }} extra='flex flex-col items-center justify-center gap-5'>
+                    <ArrowUturnLeftIcon className='h-[4.5vh] w-[4.5vh] text-brew-amber' />
+                    <h3 className='text-brew-amber text-[2.6vh] font-semibold'>
                         {t('settings.default')}
                     </h3>
-                </ItemBasic>
+                </Tile>
             </div>
         </div>
     )

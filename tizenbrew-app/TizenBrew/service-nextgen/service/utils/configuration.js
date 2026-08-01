@@ -10,7 +10,16 @@ function readConfig() {
             autoLaunchModule: '', 
         };
     }
-    return JSON.parse(fs.readFileSync('/home/owner/share/tizenbrewConfig.json', 'utf8'));
+    try {
+        return JSON.parse(fs.readFileSync('/home/owner/share/tizenbrewConfig.json', 'utf8'));
+    } catch (e) {
+        console.error('Config file is corrupted, using defaults. ' + e);
+        return {
+            modules: ["npm/@foxreis/tizentube"],
+            autoLaunchServiceList: [],
+            autoLaunchModule: '',
+        };
+    }
 }
 
 function writeConfig(config) {

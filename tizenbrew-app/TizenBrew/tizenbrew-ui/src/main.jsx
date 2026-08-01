@@ -10,6 +10,9 @@ window.shouldDisableAutoLaunch = false;
 window.addEventListener('keydown', (e) => {
     if (e.keyCode === 13) {
         document.querySelector('.focus')?.click();
+    } else if (e.keyCode === 404) {
+        // ColorF1Green: shortcut to the module manager
+        window.location.href = '/tizenbrew-ui/dist/index.html/module-manager';
     } else if (e.keyCode === 10009) {
         if (location.pathname !== '/tizenbrew-ui/dist/index.html') {
             history.back();

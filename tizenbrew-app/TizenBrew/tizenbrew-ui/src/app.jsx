@@ -10,6 +10,7 @@ import Settings, { Change } from './pages/Settings.jsx';
 import About from './pages/About.jsx';
 import './components/i18n.js';
 import UserAgentSettings from './pages/UserAgentSettings.jsx';
+import LanguageSettings from './pages/LanguageSettings.jsx';
 import { ExclamationCircleIcon } from '@heroicons/react/16/solid';
 import { useTranslation } from 'react-i18next';
 
@@ -50,10 +51,10 @@ export default function App() {
     <ErrorBoundary>
       <LocationProvider>
         <Header ref={headerRef} />
-        <div className="bg-slate-800 text-white overflow-hidden" style={{ height: `calc(100vh - ${headerHeight}px)` }}>
+        <div className="text-white overflow-hidden" style={{ height: `calc(100vh - ${headerHeight}px)` }}>
           <div className={`flex justify-center ${!context.state.sharedData.error.message ? 'hidden' : ''}`}>
-            <div class="flex items-center p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 bg-slate-900 mt-8 w-[95vw] text-red-400" role="alert">
-              <ExclamationCircleIcon className="h-[4vw] w-[2vw] mr-2" />
+            <div class="flex items-center gap-4 mx-8 mt-6 px-6 py-4 rounded-xl bg-red-950/70 ring-1 ring-red-500/30 text-red-300" role="alert">
+              <ExclamationCircleIcon className="h-[4vh] w-[4vh] shrink-0" />
               <div>
                 <span class="text-2xl">{t(context.state.sharedData.error.message, context.state.sharedData.error.args)}</span>
               </div>
@@ -66,6 +67,7 @@ export default function App() {
             <Route component={Settings} path="/tizenbrew-ui/dist/index.html/settings" />
             <Route component={Change} path="/tizenbrew-ui/dist/index.html/settings/change" />
             <Route component={UserAgentSettings} path="/tizenbrew-ui/dist/index.html/settings/change-ua" />
+            <Route component={LanguageSettings} path="/tizenbrew-ui/dist/index.html/settings/language" />
             <Route component={About} path="/tizenbrew-ui/dist/index.html/about" />
           </Router>
         </div>
