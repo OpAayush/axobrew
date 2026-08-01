@@ -1,0 +1,47 @@
+{
+    "service": {
+        "alreadyRunning": "ระบบกำลังทำงานอยู่แล้ว.",
+        "started": "ระบบเริ่มบริการเรียบร้อยแล้ว.",
+        "connected": "ระบบเชื่อมต่อกับแอปแล้ว."
+    },
+    "errors": {
+        "serviceDidntConnectYet": "คุณไม่สามารถเปิดโมดูลได้ในขณะที่ระบบยังไม่ได้เชื่อมต่อกับแอป.",
+        "moduleNotFound": "ข้อผิดพลาด: ไม่พบโมดูล {{moduleName}}.",
+        "crashedServices": "ข้อผิดพลาด: บริการต่อไปนี้เกิดปัญหาและหยุดทำงาน: {{services}}.",
+        "debuggingNotEnabled": "ข้อผิดพลาด: ไม่สามารถเชื่อมต่อกับ SDB Daemon ได้ คุณแน่ใจหรือไม่ว่าคุณได้เปลี่ยน IP ของ Host PC เป็น 127.0.0.1? หากคุณเปลี่ยนแล้ว ให้กดปุ่มพาวเวอร์ค้างไว้จนกว่าโลโก้ Samsung จะปรากฏขึ้น.",
+        "noModules": "ดูเหมือนว่าคุณยังไม่ได้ติดตั้งโมดูลใด ๆ ใช้ปุ่ม [สีเขียว] เพื่อเข้าถึงตัวจัดการโมดูล."
+    },
+    "moduleManager": {
+        "confirmDelete": "คุณต้องการลบ {{packageName}} หรือไม่?",
+        "addNPM": "เพิ่มโมดูล NPM",
+        "addNPMDesc": "ใช้สำหรับการใช้งานจริงและสำหรับผู้ใช้งาน.",
+        "addGH": "เพิ่มโมดูล GitHub",
+        "addGHDesc": "ใช้สำหรับการพัฒนาและสำหรับนักพัฒนา.",
+        "addModule": "เพิ่มโมดูล",
+        "moduleName": "ชื่อโมดูล (สำหรับ {{type}}):"
+    },
+    "settings": {
+        "autolaunch": "การตั้งค่าเปิดอัตโนมัติ",
+        "autolaunchDesc": "เปิดโมดูลที่คุณชื่นชอบโดยอัตโนมัติเมื่อคุณเปิด axobrew.",
+        "autolaunchService": "การตั้งค่าเปิดบริการอัตโนมัติ",
+        "autolaunchServiceDesc": "เปิดบริการที่คุณชื่นชอบโดยอัตโนมัติเมื่อคุณเปิด axobrew.",
+        "useragent": "การตั้งค่า User-Agent",
+        "useragentDesc": "เปลี่ยน User-Agent ของโมดูล axobrew เพื่อให้มีผลบางอย่าง เช่น การแก้ไข UI ใน TizenTube.",
+        "enableAutolaunchPrompt": "คุณต้องการตั้งค่า {{packageName}} ให้เปิดเมื่อเริ่มต้นหรือไม่?",
+        "disableAutolaunchPrompt": "คุณต้องการปิดการเปิดอัตโนมัติหรือไม่?",
+        "disableAutolaunch": "ปิดการเปิดอัตโนมัติ",
+        "noModules": "ไม่พบโมดูล.",
+        "default": "ค่าเริ่มต้น",
+        "worksOnTizen": "(ทำงานบน Tizen {{version}}+)",
+        "uaBasedOnDevice": "User-Agent ตามอุปกรณ์ (อาจทำให้มีฟีเจอร์เพิ่มเติม)",
+        "setUaTo": "คุณต้องการตั้งค่า User-Agent เป็น {{userAgent}} หรือไม่?",
+        "uaSetRelaunch": "ตั้งค่า User-Agent แล้ว กรุณาเปิดแอปใหม่เพื่อให้การเปลี่ยนแปลงมีผล.",
+        "uaNegativeEffects": "โปรดทราบว่าแม้อาจมีผลในทางบวก แต่อาจมีผลในทางลบได้เช่นกัน.",
+        "language": "การตั้งค่าภาษา",
+        "languageDesc": "เปลี่ยนภาษาของแอป."
+    },
+    "__contributors": [
+        "bookarisakorso21",
+        "phanuwat"
+    ]
+}

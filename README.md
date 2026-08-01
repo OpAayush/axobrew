@@ -1,13 +1,13 @@
-# 🍺 TizenBrew
+# 🍺 axobrew
 
 <p align="center">
     <img width="700px" src="./.github/assets/TizenBrew_Official_Banner.png">
     <br>
-    <sub> TizenBrew logo, banner and README by <a href="https://github.com/Zyborg777">@Zyborg777</a> </sub>
+    <sub> axobrew logo, banner and README by <a href="https://github.com/Zyborg777">@Zyborg777</a> </sub>
 </p>
 
 ### Experience your favorite custom apps (such as [TizenTube](https://github.com/reisxd/TizenTube)) in a whole new way!
-Thanks to TizenBrew, you can install newer apps without having to deal with Tizen Studio multiple times. Just one click
+Thanks to axobrew, you can install newer apps without having to deal with Tizen Studio multiple times. Just one click
 and you're done 🎊
 
 <p align="center">
@@ -48,7 +48,7 @@ and you're done 🎊
 
 # 🙌 Getting started
 
-### You can read the [guide](./docs/README.md) down below to get started with TizenBrew ⬇️
+### You can read the [guide](./docs/README.md) down below to get started with axobrew ⬇️
 <p align="left">
     <a href="./docs/README.md">
         <picture>
@@ -60,8 +60,8 @@ and you're done 🎊
 
 # 💻 Making a module
 
-You can read the [guide](./docs/MODULES.md) to make a module for TizenBrew.
+You can read the [guide](./docs/MODULES.md) to make a module for axobrew.
 
 # 💬 Translations
 
-You can read the [guide](./docs/TRANSLATION.md) to translate TizenBrew into your native language.
+You can read the [guide](./docs/TRANSLATION.md) to translate axobrew into your native language.

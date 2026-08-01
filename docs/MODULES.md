@@ -1,4 +1,4 @@
-# Creating modules for TizenBrew
+# Creating modules for axobrew
 
 There are three types of modules: applications, site modifications and services. The modules itself are normal NPM/Node modules but special.
 

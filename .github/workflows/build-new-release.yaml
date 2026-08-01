@@ -1,4 +1,4 @@
-name: Build TizenBrew Standalone Application and Release
+name: Build axobrew Standalone Application and Release
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       
       - name: Install modules and transpile service
-        working-directory: tizenbrew-app/TizenBrew/service-nextgen/service
+        working-directory: axobrew-app/axobrew/service-nextgen/service
         run: |
           sudo apt install -y expect zip coreutils
           sudo curl -Lo /usr/bin/ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_linux_x86_64
@@ -30,20 +30,20 @@ jobs:
           rm -r node_modules
 
       - name: Build service
-        working-directory: tizenbrew-app/TizenBrew/service-nextgen/service/transpiled
+        working-directory: axobrew-app/axobrew/service-nextgen/service/transpiled
         run: |
           ncc build index.js -o ../dist
           rm -r node_modules
 
       - name: Build UI
-        working-directory: tizenbrew-app/TizenBrew/tizenbrew-ui
+        working-directory: axobrew-app/axobrew/axobrew-ui
         run: |
           npm install --force
           npm run build
           rm -r node_modules
 
       - name: Clean up transpiled files
-        working-directory: tizenbrew-app/TizenBrew/service-nextgen/service
+        working-directory: axobrew-app/axobrew/service-nextgen/service
         run: |
           rm -r transpiled
 
@@ -61,37 +61,37 @@ jobs:
       - name: Prepare Tizen Certificate
         run: |
           mkdir -p "${GITHUB_WORKSPACE}/tizen-studio-data/keystore/author/"
-          echo "${{ secrets.TIZEN_AUTHOR_KEY }}" | base64 -d > "${GITHUB_WORKSPACE}/tizen-studio-data/keystore/author/tizenbrew-author.p12"
+          echo "${{ secrets.TIZEN_AUTHOR_KEY }}" | base64 -d > "${GITHUB_WORKSPACE}/tizen-studio-data/keystore/author/axobrew-author.p12"
           ./tizen-studio/tools/ide/bin/tizen cli-config "profiles.path=${GITHUB_WORKSPACE}/tizen-studio-data/profile/profiles.xml"
           cp .github/assets/profiles.xml "${GITHUB_WORKSPACE}/tizen-studio-data/profile/profiles.xml"
           sed -i "s|\$GITHUB_WORKSPACE|${GITHUB_WORKSPACE}|g" "${GITHUB_WORKSPACE}/tizen-studio-data/profile/profiles.xml"
           sed -i "s|\$KEY_PW|${{ secrets.TIZEN_AUTHOR_KEY_PW }}|g" "${GITHUB_WORKSPACE}/tizen-studio-data/profile/profiles.xml"
           chmod 755 "./tizen-studio-data/profile/profiles.xml"
 
-      - name: Build TizenBrew
-        working-directory: tizenbrew-app/TizenBrew
+      - name: Build axobrew
+        working-directory: axobrew-app/axobrew
         run: |
           ${GITHUB_WORKSPACE}/tizen-studio/tools/ide/bin/tizen build-web -e ".*" -e "node_modules/*" -e "package*.json" -e "yarn.lock"
 
-      - name: Package TizenBrew for Old Tizen
+      - name: Package axobrew for Old Tizen
         env:
           PASSWORD: ${{ secrets.TIZEN_AUTHOR_KEY_PW }}
-          APP_PATH: tizenbrew-app/TizenBrew
-          CERT: TizenBrew-Old
+          APP_PATH: axobrew-app/axobrew
+          CERT: AxoBrew-Old
         run: |
           expect ./package.exp
           cat "${GITHUB_WORKSPACE}/tizen-studio-data/cli/logs/cli.log"
-          mv tizenbrew-app/TizenBrew/release/TizenBrewNextGeneration.wgt tizenbrew-app/TizenBrew/release/TizenBrewStandalone-Old.wgt
+          mv axobrew-app/axobrew/release/axobrew.wgt axobrew-app/axobrew/release/AxoBrewStandalone-Old.wgt
 
-      - name: Upload TizenBrew package artifact for Old Tizen
+      - name: Upload axobrew package artifact for Old Tizen
         uses: actions/upload-artifact@v4
         with:
             name: app-${{ github.sha }}-old.wgt
-            path: tizenbrew-app/TizenBrew/release/TizenBrewStandalone-Old.wgt
+            path: axobrew-app/axobrew/release/AxoBrewStandalone-Old.wgt
       
-      - name: Release TizenBrew Build Results
+      - name: Release axobrew Build Results
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.RELEASE_VERSION }}
           files: |
-            tizenbrew-app/TizenBrew/release/*
+            axobrew-app/axobrew/release/*

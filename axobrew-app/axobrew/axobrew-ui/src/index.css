@@ -1,0 +1,49 @@
+@import '@fontsource/outfit/latin-400.css';
+@import '@fontsource/outfit/latin-500.css';
+@import '@fontsource/outfit/latin-600.css';
+@import '@fontsource/outfit/latin-700.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fallback: --uh is overridden at startup from the real screen size so the
+   virtual keyboard can never rescale the interface. */
+:root {
+    --uh: 1vh;
+}
+
+/* Older Tizen browsers (Chromium 56, e.g. Tizen 4) need the prefixed
+   backdrop-filter or the header glass effect silently disappears. */
+.backdrop-blur-md {
+    -webkit-backdrop-filter: blur(12px);
+}
+
+html,
+body,
+#app {
+    height: 100%;
+}
+
+body {
+    background-color: #171018;
+    /* Warm plum countertop: brand plum wash from above, a faint amber lamp
+       from below, and a subtle dot texture so the surface is not flat. */
+    background-image:
+        radial-gradient(ellipse 90% 55% at 50% -15%, rgba(92, 45, 81, 0.55), transparent),
+        radial-gradient(ellipse 65% 45% at 100% 112%, rgba(253, 202, 137, 0.06), transparent),
+        radial-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1.4px);
+    background-repeat: no-repeat, no-repeat, repeat;
+    background-size: auto, auto, 26px 26px;
+    background-attachment: fixed;
+}
+
+.focus {
+    outline: 3px solid rgba(253, 202, 137, 0.9);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 1px rgba(253, 202, 137, 0.35), 0 0 24px rgba(253, 202, 137, 0.28);
+}
+
+.skeleton {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+    background-size: 200% 100%;
+}
