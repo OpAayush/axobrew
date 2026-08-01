@@ -1,15 +1,8 @@
 "use strict";
 
 const vm = require('vm');
-const fetch = require('node-fetch');
 const { getDevResourceUrl } = require('./devServer.js');
-
-function fetchWithTimeout(url, ms) {
-    return Promise.race([
-        fetch(url),
-        new Promise((resolve, reject) => setTimeout(() => reject(new Error('Fetch timed out: ' + url)), ms))
-    ]);
-}
+const { fetchTextWithRetry } = require('./network.js');
 
 function startService(mdl, services) {
     let sandbox = {};
@@ -44,38 +37,37 @@ function startService(mdl, services) {
         return;
     }
 
-    const fetchOnce = () => fetchWithTimeout(serviceUrl, mdl.dev ? 10000 : 15000)
-        .then(res => res.text());
-    const attempt = mdl.dev
-        ? fetchOnce().catch(() => new Promise(resolve => setTimeout(resolve, 750)).then(fetchOnce))
-        : fetchOnce();
+    // The response is verified (HTTP 200) before the body is read: a 404 or
+    // error page must never be run as a service. Dev service fetches retry
+    // twice with backoff for slow local server cold starts.
+    fetchTextWithRetry(serviceUrl, 15000, mdl.dev ? 2 : 1, mdl.dev ? 'dev service' : 'service')
+        .then(script => {
+            const entry = services.get(mdl.fullName);
+            if (!entry) return;
+            entry.loading = false;
+            entry.context = vm.createContext(sandbox);
 
-    attempt.then(script => {
-        const entry = services.get(mdl.fullName);
-        if (!entry) return;
-        entry.loading = false;
-        entry.context = vm.createContext(sandbox);
-
-        try {
-            vm.runInContext(script, entry.context);
-        } catch (e) {
-            entry.hasCrashed = true;
-            entry.error = e;
-        }
-    }).catch(e => {
-        if (services.has(mdl.fullName)) {
-            services.get(mdl.fullName).loading = false;
-            services.get(mdl.fullName).hasCrashed = true;
-            services.get(mdl.fullName).error = e;
-        } else {
-            services.set(mdl.fullName, {
-                context: null,
-                hasCrashed: true,
-                error: e,
-                loading: false
-            });
-        }
-    });
+            try {
+                vm.runInContext(script, entry.context);
+            } catch (e) {
+                console.error('Service crashed: ' + (e.message || e));
+                entry.hasCrashed = true;
+                entry.error = e;
+            }
+        }).catch(e => {
+            if (services.has(mdl.fullName)) {
+                services.get(mdl.fullName).loading = false;
+                services.get(mdl.fullName).hasCrashed = true;
+                services.get(mdl.fullName).error = e;
+            } else {
+                services.set(mdl.fullName, {
+                    context: null,
+                    hasCrashed: true,
+                    error: e,
+                    loading: false
+                });
+            }
+        });
 }
 
 module.exports = startService;

@@ -1,17 +1,9 @@
 const { readConfig } = require('./configuration.js');
 const { isDevServerEnabled, getDevPackageJsonUrl } = require('./devServer.js');
-const fetch = require('node-fetch');
-
-function fetchWithTimeout(url, ms) {
-    return Promise.race([
-        fetch(url),
-        new Promise((resolve, reject) => setTimeout(() => reject(new Error(`Fetch timed out: ${url}`)), ms))
-    ]);
-}
+const { fetchJsonWithRetry } = require('./network.js');
 
 function fetchPackageJson(module) {
-    return fetchWithTimeout(`https://cdn.jsdelivr.net/${module}/package.json?v=${Date.now()}`, 15000)
-        .then(res => res.json());
+    return fetchJsonWithRetry(`https://cdn.jsdelivr.net/${module}/package.json?v=${Date.now()}`, 15000, 1, 'package.json');
 }
 
 function unknownModule(module) {
@@ -100,8 +92,7 @@ function loadDevModule() {
     if (!isDevServerEnabled()) return Promise.resolve(null);
     const devPackageJsonUrl = getDevPackageJsonUrl();
     if (!devPackageJsonUrl) return Promise.resolve(null);
-    return fetchWithTimeout(devPackageJsonUrl, 8000)
-        .then(res => res.json())
+    return fetchJsonWithRetry(devPackageJsonUrl, 8000, 1, 'dev package.json')
         .then(moduleJson => {
             const moduleData = buildModuleData(`dev/${moduleJson.name || 'dev'}`, moduleJson);
             if (moduleData) moduleData.dev = true;

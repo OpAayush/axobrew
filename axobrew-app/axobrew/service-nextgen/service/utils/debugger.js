@@ -1,10 +1,10 @@
 "use strict";
 
 const CDP = require('chrome-remote-interface');
-const fetch = require('node-fetch');
 const { Events } = require('./wsCommunication.js');
 const { readConfig } = require('./configuration.js');
 const WebSocket = require('ws');
+const { fetchTextWithRetry } = require('./network.js');
 
 const modulesCache = new Map();
 
@@ -17,11 +17,13 @@ const moduleScriptCache = {
     at: 0
 };
 
-function fetchWithTimeout(url, ms) {
-    return Promise.race([
-        fetch(url),
-        new Promise((resolve, reject) => setTimeout(() => reject(new Error('Fetch timed out: ' + url)), ms))
-    ]);
+// chrome-remote-interface method calls return promises. An evaluate can
+// reject when the page navigated away and the execution context is gone;
+// log it so the next execution context retries the injection.
+function safeEvaluate(client, expression, contextId) {
+    if (!expression) return Promise.resolve();
+    return client.Runtime.evaluate({ expression: expression, contextId: contextId })
+        .catch(e => console.error('Userscript evaluate failed: ' + (e.message || e)));
 }
 
 function getModuleScriptUrl(mdl) {
@@ -33,23 +35,23 @@ function getModuleScriptUrl(mdl) {
 // For the dev module, share one fetch for ~5 seconds so the dev server is
 // never flooded with duplicate user script requests (which made loading
 // flaky, especially right after a module reload). Regular modules keep
-// fetching per context but with a timeout.
+// fetching per context but with a timeout. Dev fetches retry twice with
+// backoff; the dev server is on the local network and slow cold starts
+// (Windows Defender scanning http-server's first read) need the extra time.
 function getModuleScript(mdl) {
     if (mdl.dev && moduleScriptCache.dev && Date.now() - moduleScriptCache.at < 5000) {
         return Promise.resolve(moduleScriptCache.dev);
     }
-    const fetchOnce = () => fetchWithTimeout(getModuleScriptUrl(mdl), mdl.dev ? 10000 : 15000)
-        .then(res => res.text());
-    const attempt = mdl.dev
-        ? fetchOnce().catch(() => new Promise(resolve => setTimeout(resolve, 750)).then(fetchOnce))
-        : fetchOnce();
-    return attempt.then(text => {
-        if (mdl.dev) {
-            moduleScriptCache.dev = text;
-            moduleScriptCache.at = Date.now();
-        }
-        return text;
-    });
+    const url = getModuleScriptUrl(mdl);
+    const attempt = fetchTextWithRetry(url, 15000, mdl.dev ? 2 : 1, mdl.dev ? 'dev userscript' : 'userscript')
+        .then(text => {
+            if (mdl.dev) {
+                moduleScriptCache.dev = text;
+                moduleScriptCache.at = Date.now();
+            }
+            return text;
+        });
+    return attempt;
 }
 
 function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appControlData, isAnotherApp, attempts) {
@@ -64,13 +66,13 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
                 if (!mdl.evaluateScriptOnDocumentStart && mdl.name !== '') {
                     const cache = mdl.dev ? null : modulesCache.get(mdl.fullName);
                     if (cache) {
-                        client.Runtime.evaluate({ expression: cache, contextId: msg.context.id });
+                        safeEvaluate(client, cache, msg.context.id);
                     } else {
                         getModuleScript(mdl).then(modFile => {
                             modulesCache.set(mdl.fullName, modFile);
-                            client.Runtime.evaluate({ expression: modFile, contextId: msg.context.id });
+                            safeEvaluate(client, modFile, msg.context.id);
                         }).catch(e => {
-                            client.Runtime.evaluate({ expression: `alert("Failed to load module: '${mdl.fullName}'. Please relaunch axobrew to try again.")`, contextId: msg.context.id });
+                            safeEvaluate(client, `alert("Failed to load module: '${mdl.fullName}'. Please relaunch axobrew to try again.")`, msg.context.id);
                         });
                     }
                 } else if (mdl.name !== '' && mdl.evaluateScriptOnDocumentStart) {
@@ -106,6 +108,8 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
                 mdl.packageType = '';
                 mdl.serviceFile = '';
                 mdl.mainFile = '';
+                mdl.dev = false;
+                mdl.evaluateScriptOnDocumentStart = false;
             });
 
             if (!isAnotherApp) {
@@ -160,9 +164,13 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
     }
 }
 
+// Wait until an actually OPEN socket is registered. A stale connection (the
+// app closed itself and relaunched in debug) would swallow the event, so the
+// previous isReady shortcut is gone: the event retries every 50ms until the
+// freshly relaunched UI connects and registers its socket.
 function sendClientInformation(clientConn, data) {
     const clientConnection = clientConn.get('wsConn');
-    if ((clientConnection && clientConnection.connection && (clientConnection.connection.readyState !== WebSocket.OPEN && !clientConnection.isReady)) || !clientConnection) {
+    if (!clientConnection || !clientConnection.connection || clientConnection.connection.readyState !== WebSocket.OPEN) {
         return setTimeout(() => sendClientInformation(clientConn, data), 50);
     }
     setTimeout(() => {

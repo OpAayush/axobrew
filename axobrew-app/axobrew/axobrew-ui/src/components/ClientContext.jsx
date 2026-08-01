@@ -11,6 +11,8 @@ const initialState = {
         modules: null,
         state: null,
         devServer: null,
+        addingModule: null,
+        removingModules: [],
         error: {
             message: null,
             dissapear: false
@@ -34,6 +36,10 @@ function reducer(state, action) {
             return { ...state, sharedData: { ...state.sharedData, state: action.payload } };
         case 'SET_DEV_SERVER':
             return { ...state, sharedData: { ...state.sharedData, devServer: action.payload } };
+        case 'SET_ADDING_MODULE':
+            return { ...state, sharedData: { ...state.sharedData, addingModule: action.payload } };
+        case 'SET_REMOVING_MODULES':
+            return { ...state, sharedData: { ...state.sharedData, removingModules: action.payload } };
         case 'SET_ERROR':
             return { ...state, sharedData: { ...state.sharedData, error: action.payload } };
         default:

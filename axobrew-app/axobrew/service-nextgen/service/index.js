@@ -5,7 +5,6 @@ module.exports.onStart = function () {
     const adbhost = require('adbhost');
     const express = require('express');
     const fetch = require('node-fetch');
-    const fs = require('fs');
     const path = require('path');
     const { readConfig, writeConfig } = require('./utils/configuration.js');
     const { loadModules, loadDevModule } = require('./utils/moduleLoader.js');
@@ -68,7 +67,7 @@ module.exports.onStart = function () {
     // API up yet. Fail softly instead of crashing the service: keep
     // canLaunchInDebug as null so the UI keeps polling and retries.
     const checkCanLaunchInDebug = () => {
-        fetch('http://127.0.0.1:8001/api/v2/').then(res => res.json())
+        return fetch('http://127.0.0.1:8001/api/v2/').then(res => res.json())
             .then(json => {
                 canLaunchInDebug = (json.device.developerIP === '127.0.0.1' || json.device.developerIP === '1.0.0.127') && json.device.developerMode === '1';
             })
@@ -93,6 +92,22 @@ module.exports.onStart = function () {
         moduleType: '',
         packageType: '',
         serviceFile: ''
+    };
+
+    // Copy the module the UI/debugger is working with. The debugger attaches
+    // with this object, so it must carry every field (incl. the dev flag) or
+    // the user script would fall back to a jsDelivr URL and never load.
+    const fillCurrentModule = (module) => {
+        currentModule.fullName = module.fullName;
+        currentModule.name = module.name;
+        currentModule.appPath = module.appPath;
+        currentModule.moduleType = module.moduleType;
+        currentModule.packageType = module.packageType;
+        currentModule.serviceFile = module.serviceFile;
+        currentModule.mainFile = module.mainFile;
+        currentModule.tizenAppId = module.tizenAppId;
+        currentModule.evaluateScriptOnDocumentStart = module.evaluateScriptOnDocumentStart;
+        currentModule.dev = module.dev;
     };
 
     const appControlData = {
@@ -154,66 +169,22 @@ module.exports.onStart = function () {
             const serviceModuleList = readConfig().autoLaunchServiceList;
             if (serviceModuleList.length > 0) {
                 serviceModuleList.forEach(module => {
-                    const service = modules.find(m => m.name === module);
+                    // Settings stores full names ('npm/@foxreis/tizentube');
+                    // accept the short name too for old configs.
+                    const service = modules.find(m => m.fullName === module || m.name === module);
                     if (service) startService(service, services);
                 });
             }
-            autoLaunchModuleAtBoot();
         });
     };
     loadModulesWithRetry();
 
 
-    // On older Tizen models (e.g. Tizen 4) the TV never auto-runs the
-    // axobrew app at boot, so the module auto-launch chain (which needs the
-    // app running in debug mode) never starts. The system does start this
-    // service periodically, so the service kicks off the debug relaunch
-    // itself: the app opens, the debugger attaches and auto-launches the
-    // configured module. A timestamp file prevents re-triggering on service
-    // restarts/crashes (module would interrupt what the user is watching).
-    const autoLaunchModuleAtBoot = () => {
-        const config = readConfig();
-        if (!config.autoLaunchModule) return;
-        if (inDebug.tizenDebug || inDebug.webDebug) return;
-
-        // Only write the timestamp guard when the launch is actually issued.
-        // If the module is not in the list yet (e.g. dev server still waking
-        // up), leave the guard untouched so the next service start retries
-        // instead of burning the one-hour window.
-        const module = modulesCache.find(m => m.fullName === config.autoLaunchModule);
-        if (!module) return;
-
-        const autoLaunchTimePath = '/home/owner/share/tizenbrewAutoLaunchTime';
-        try {
-            if (fs.existsSync(autoLaunchTimePath)) {
-                const lastLaunch = Number(fs.readFileSync(autoLaunchTimePath, 'utf8')) || 0;
-                if (Date.now() - lastLaunch < 3600000) return;
-            }
-            fs.writeFileSync(autoLaunchTimePath, String(Date.now()));
-        } catch (e) {
-            console.error('autoLaunch time file error. ' + e);
-        }
-
-        currentModule.fullName = module.fullName;
-        currentModule.name = module.name;
-        currentModule.appPath = module.appPath;
-        currentModule.moduleType = module.moduleType;
-        currentModule.packageType = module.packageType;
-        currentModule.serviceFile = module.serviceFile;
-        currentModule.mainFile = module.mainFile;
-        currentModule.tizenAppId = module.tizenAppId;
-        currentModule.evaluateScriptOnDocumentStart = module.evaluateScriptOnDocumentStart;
-        currentModule.dev = module.dev;
-
-        console.log('Auto-launching module: ' + config.autoLaunchModule);
-        setTimeout(() => createAdbConnection('127.0.0.1', currentModule), 20000);
-    };
-
-
-    function createAdbConnection(ip, mdl) {
+    function createAdbConnection(ip, mdl, attempts) {
+        if (!attempts) attempts = 1;
         deviceIP = ip;
         if (adbClient) {
-            if (!adbClient._stream) {
+            if (adbClient._stream) {
                 adbClient._stream.removeAllListeners('connect');
                 adbClient._stream.removeAllListeners('error');
                 adbClient._stream.removeAllListeners('close');
@@ -239,6 +210,11 @@ module.exports.onStart = function () {
 
         adbClient._stream.on('error', (e) => {
             console.log('ADB connection error. ' + e);
+            // The app may still be closing when the relaunch is requested;
+            // retry a few times instead of giving up after one failure.
+            if (attempts < 3) {
+                setTimeout(() => createAdbConnection(ip, mdl, attempts + 1), 3000);
+            }
         });
         adbClient._stream.on('close', () => {
             console.log('ADB connection closed.');
@@ -253,6 +229,14 @@ module.exports.onStart = function () {
             queuedEvents.splice(queuedEvents.indexOf(event), 1);
         }
         services.set('wsConn', wsConn);
+        ws.on('close', () => {
+            // Drop the stale connection: after the app closes and relaunches
+            // in debug, the old socket must not receive debugger events
+            // (they would be silently lost).
+            if (services.get('wsConn') === wsConn) {
+                services.delete('wsConn');
+            }
+        });
         ws.on('message', (message) => {
             let msg;
             try {
@@ -286,13 +270,28 @@ module.exports.onStart = function () {
                     break;
                 }
                 case Events.CanLaunchInDebug: {
-                    checkCanLaunchInDebug();
-                    wsConn.send(wsConn.Event(Events.CanLaunchInDebug, canLaunchInDebug));
+                    // Resolve the developer API first, then answer: sending
+                    // the stale value would make the UI poll for nothing.
+                    checkCanLaunchInDebug().then(() => {
+                        wsConn.send(wsConn.Event(Events.CanLaunchInDebug, canLaunchInDebug));
+                    });
                     break;
                 }
                 case Events.ReLaunchInDebug: {
+                    // The app just closed itself and is about to relaunch in
+                    // debug mode. Pre-fill the debugger's module from the
+                    // autolaunch config so the user script is injected into
+                    // the module page even if the UI's LaunchModule event
+                    // arrives late (after the first execution context).
+                    if (!currentModule.fullName) {
+                        const config = readConfig();
+                        if (config.autoLaunchModule) {
+                            const module = modulesCache.find(m => m.fullName === config.autoLaunchModule);
+                            if (module) fillCurrentModule(module);
+                        }
+                    }
                     setTimeout(() => {
-                        createAdbConnection(payload.tvIP, currentModule);
+                        createAdbConnection(payload.tvIP, currentModule, 1);
                     }, 1000);
                     break;
                 }
@@ -324,14 +323,8 @@ module.exports.onStart = function () {
                     break;
                 }
                 case Events.LaunchModule: {
+                    fillCurrentModule(payload);
                     const mdl = payload;
-                    currentModule.fullName = mdl.fullName;
-                    currentModule.name = mdl.name;
-                    currentModule.appPath = mdl.appPath;
-                    currentModule.moduleType = mdl.moduleType;
-                    currentModule.packageType = mdl.packageType;
-                    currentModule.serviceFile = mdl.serviceFile;
-                    currentModule.dev = mdl.dev;
 
                     if (mdl.packageType === 'app') {
                         inDebug.webDebug = false;

@@ -18,7 +18,16 @@
     "addGH": "Add GitHub Module",
     "addGHDesc": "This is primarily for development and for developers.",
     "addModule": "Add Module",
-    "moduleName": "Module Name (For {{type}}):"
+    "moduleName": "Module Name (For {{type}}):",
+    "addingDesc": "Fetching the module from its source. This can take a moment.",
+    "versionPin": "Version",
+    "add": "Add module",
+    "adding": "Adding {name}",
+    "autoUpdateDesc": "Always get the newest release",
+    "versionPinDesc": "Pin a specific release, tag or branch",
+    "autoUpdate": "Auto update",
+    "versionPlaceholder": "e.g. v1.2.3 or main",
+    "latest": "Latest"
   },
   "settings": {
     "autolaunch": "Autolaunch Settings",
