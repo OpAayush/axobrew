@@ -14,6 +14,11 @@ const UserAgents = [
         userAgent: 'Mozilla/5.0 (LINUX; Tizen/6.0/2021.1.3) Cobalt/21.lts.4.302899-gold (unlike Gecko) v8/7.7.299.8-jit gles Evergreen/1.4.3 Starboard/12, Samsung_TV_NIKEM2_2021/T-NKM2AKUC-2111.1 (Samsung, QN55Q80AAFXZA, Wired)'
     },
     {
+        name: 'Samsung TV (Tizen 4.0)',
+        worksOnTizen: 4,
+        userAgent: 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 4.0) AppleWebKit/537.3 (KHTML, like Gecko) SamsungBrowser/2.1 TV Safari/537.3'
+    },
+    {
         name: 'settings.uaBasedOnDevice',
         userAgent: () => {
             const xhr = new XMLHttpRequest();

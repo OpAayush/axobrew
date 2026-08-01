@@ -8,6 +8,15 @@ const WebSocket = require('ws');
 
 const modulesCache = new Map();
 
+// When developing a module, serve the user script from a local dev server
+// instead of jsDelivr (see devServer.js).
+const { isDev, getUserScriptUrl } = require('./devServer.js');
+
+function getModuleScriptUrl(mdl) {
+    if (isDev) return getUserScriptUrl();
+    return `https://cdn.jsdelivr.net/${mdl.fullName}/${mdl.mainFile}?v=${Date.now()}`;
+}
+
 function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appControlData, isAnotherApp, attempts) {
     if (!attempts) attempts = 1;
     if (!isAnotherApp) inDebug.tizenDebug = true;
@@ -18,11 +27,11 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
 
             client.on('Runtime.executionContextCreated', (msg) => {
                 if (!mdl.evaluateScriptOnDocumentStart && mdl.name !== '') {
-                    const cache = modulesCache.get(mdl.fullName);
+                    const cache = isDev ? null : modulesCache.get(mdl.fullName);
                     if (cache) {
                         client.Runtime.evaluate({ expression: cache, contextId: msg.context.id });
                     } else {
-                        fetch(`https://cdn.jsdelivr.net/${mdl.fullName}/${mdl.mainFile}`).then(res => res.text()).then(modFile => {
+                        fetch(getModuleScriptUrl(mdl)).then(res => res.text()).then(modFile => {
                             modulesCache.set(mdl.fullName, modFile);
                             client.Runtime.evaluate({ expression: modFile, contextId: msg.context.id });
                         }).catch(e => {
@@ -30,13 +39,13 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
                         });
                     }
                 } else if (mdl.name !== '' && mdl.evaluateScriptOnDocumentStart) {
-                    const cache = modulesCache.get(mdl.fullName);
+                    const cache = isDev ? null : modulesCache.get(mdl.fullName);
                     const clientConnection = clientConn.get('wsConn');
                     if (cache) {
                         client.Page.addScriptToEvaluateOnNewDocument({ expression: cache });
                         sendClientInformation(clientConn, clientConnection.Event(Events.LaunchModule, mdl.name));
                     } else {
-                        fetch(`https://cdn.jsdelivr.net/${mdl.fullName}/${mdl.mainFile}`).then(res => res.text()).then(modFile => {
+                        fetch(getModuleScriptUrl(mdl)).then(res => res.text()).then(modFile => {
                             modulesCache.set(mdl.fullName, modFile);
                             sendClientInformation(clientConn, clientConnection.Event(Events.LaunchModule, mdl.name));
                             client.Page.addScriptToEvaluateOnNewDocument({ expression: modFile });

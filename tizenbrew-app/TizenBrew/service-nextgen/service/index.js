@@ -21,7 +21,8 @@ module.exports.onStart = function () {
 
     const app = express();
     let deviceIP;
-    const isTizen3 = tizen.systeminfo.getCapability('http://tizen.org/feature/platform.version').startsWith('3.0');
+    const platformVersion = tizen.systeminfo.getCapability('http://tizen.org/feature/platform.version') || '';
+    const isTizen3 = platformVersion.startsWith('3.0');
 
     // HTTP Proxy for modules 
     app.all('*', (req, res) => {
@@ -29,13 +30,15 @@ module.exports.onStart = function () {
             const splittedUrl = req.url.split('/');
             const encodedModuleName = splittedUrl[2];
             const moduleName = decodeURIComponent(encodedModuleName);
-            fetch(`https://cdn.jsdelivr.net/${moduleName}/${req.url.replace(`/module/${encodedModuleName}/`, '')}`)
+            const modulePath = req.url.replace(`/module/${encodedModuleName}/`, '');
+            const cacheBust = modulePath.includes('?') ? '&' : '?';
+            fetch(`https://cdn.jsdelivr.net/${moduleName}/${modulePath}${cacheBust}v=${Date.now()}`)
                 .then(fetchRes => {
                     return fetchRes.body.pipe(res);
                 })
                 .then(() => {
                     res.setHeader('Access-Control-Allow-Origin', '*');
-                    res.type(path.basename(req.url.replace(`/module/${encodedModuleName}/`, '')).split('.').slice(-1)[0].split('?')[0]);
+                    res.type(path.basename(modulePath).split('.').slice(-1)[0].split('?')[0]);
                 });
         } else {
             res.send(deviceIP);
@@ -46,10 +49,19 @@ module.exports.onStart = function () {
 
     let adbClient;
     let canLaunchInDebug = null;
-    fetch('http://127.0.0.1:8001/api/v2/').then(res => res.json())
-        .then(json => {
-            canLaunchInDebug = (json.device.developerIP === '127.0.0.1' || json.device.developerIP === '1.0.0.127') && json.device.developerMode === '1';
-        });
+    // Older models or a TV that was just booted may not have the developer
+    // API up yet. Fail softly instead of crashing the service: keep
+    // canLaunchInDebug as null so the UI keeps polling and retries.
+    const checkCanLaunchInDebug = () => {
+        fetch('http://127.0.0.1:8001/api/v2/').then(res => res.json())
+            .then(json => {
+                canLaunchInDebug = (json.device.developerIP === '127.0.0.1' || json.device.developerIP === '1.0.0.127') && json.device.developerMode === '1';
+            })
+            .catch(e => {
+                console.error('Failed to fetch developer API. ' + e);
+            });
+    };
+    checkCanLaunchInDebug();
     const inDebug = {
         tizenDebug: false,
         webDebug: false,
@@ -73,16 +85,28 @@ module.exports.onStart = function () {
         args: null
     };
 
-    loadModules().then(modules => {
-        modulesCache = modules;
-        const serviceModuleList = readConfig().autoLaunchServiceList;
-        if (serviceModuleList.length > 0) {
-            serviceModuleList.forEach(module => {
-                const service = modules.find(m => m.name === module);
-                if (service) startService(service, services);
-            });
-        }
-    });
+    // Load the module list. If the network or the dev server is not up yet
+    // (TV just booted, older models), keep retrying in the background instead
+    // of leaving the service with an empty module list.
+    const loadModulesWithRetry = () => {
+        loadModules().then(modules => {
+            modulesCache = modules;
+            const hasRealModule = modules.some(m => m.appName !== 'Unknown Module');
+            if (!hasRealModule) {
+                console.error('No modules could be loaded. Retrying in 30 seconds.');
+                setTimeout(loadModulesWithRetry, 30000);
+                return;
+            }
+            const serviceModuleList = readConfig().autoLaunchServiceList;
+            if (serviceModuleList.length > 0) {
+                serviceModuleList.forEach(module => {
+                    const service = modules.find(m => m.name === module);
+                    if (service) startService(service, services);
+                });
+            }
+        });
+    };
+    loadModulesWithRetry();
 
 
     function createAdbConnection(ip, mdl) {
@@ -161,10 +185,7 @@ module.exports.onStart = function () {
                     break;
                 }
                 case Events.CanLaunchInDebug: {
-                    fetch('http://127.0.0.1:8001/api/v2/').then(res => res.json())
-                        .then(json => {
-                            canLaunchInDebug = (json.device.developerIP === '127.0.0.1' || json.device.developerIP === '1.0.0.127') && json.device.developerMode === '1';
-                        });
+                    checkCanLaunchInDebug();
                     wsConn.send(wsConn.Event(Events.CanLaunchInDebug, canLaunchInDebug));
                     break;
                 }

@@ -1,12 +1,13 @@
-import { Cog6ToothIcon, ArchiveBoxIcon, HomeIcon, QuestionMarkCircleIcon } from '@heroicons/react/16/solid';
+import { Cog6ToothIcon, ArchiveBoxIcon, HomeIcon, QuestionMarkCircleIcon, ArrowPathIcon } from '@heroicons/react/16/solid';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { useEffect, useContext } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import { GlobalStateContext } from './ClientContext.jsx';
 import TBLogo from '../assets/tizenbrew.svg';
 import { useTranslation } from 'react-i18next';
+import { Events } from './WebSocketClient.js';
 
-function Button({ children, route, focus, focusKey }) {
+function Button({ children, route, focus, focusKey, action }) {
     const { ref, focusSelf, focused } = useFocusable();
     const location = useLocation();
 
@@ -20,7 +21,7 @@ function Button({ children, route, focus, focusKey }) {
             ref={ref}
             focusKey={focus ? 'sn:focusable-item-1' : focusKey}
             className={`flex items-center justify-center p-2 rounded-full bg-slate-800 hover:bg-slate-600 text-slate-100 ${focused ? 'focus' : ''}`}
-            onClick={() => location.route(`/tizenbrew-ui/dist/index.html${route}`)}
+            onClick={() => (action ? action() : location.route(`/tizenbrew-ui/dist/index.html${route}`))}
         >
             {children}
         </button>
@@ -62,6 +63,9 @@ export default function Header() {
                     </Button>
                     <Button route="/about">
                         <QuestionMarkCircleIcon className="h-[4vh] w-[2vw]" />
+                    </Button>
+                    <Button action={() => state.client?.send({ type: Events.GetModules, payload: true })}>
+                        <ArrowPathIcon className="h-[4vh] w-[2vw]" />
                     </Button>
                 </div>
             </nav>

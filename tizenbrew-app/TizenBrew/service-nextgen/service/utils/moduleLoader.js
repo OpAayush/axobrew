@@ -1,13 +1,35 @@
 const { readConfig } = require('./configuration.js');
+const { getPackageJsonUrl, isDev } = require('./devServer.js');
 const fetch = require('node-fetch');
+
+function fetchWithTimeout(url, ms) {
+    return Promise.race([
+        fetch(url),
+        new Promise((resolve, reject) => setTimeout(() => reject(new Error(`Fetch timed out: ${url}`)), ms))
+    ]);
+}
+
+function fetchPackageJson(module) {
+    return fetchWithTimeout(getPackageJsonUrl(module), 10000)
+        .then(res => res.json())
+        .catch(e => {
+            console.error(e.message || e);
+            if (isDev) {
+                // The dev server may be unreachable (PC off, not started yet).
+                // Fall back to jsDelivr so the module list never hangs the service.
+                return fetchWithTimeout(`https://cdn.jsdelivr.net/${module}/package.json?v=${Date.now()}`, 15000)
+                    .then(res => res.json());
+            }
+            throw e;
+        });
+}
 
 function loadModules() {
     const config = readConfig();
     const modules = config.modules;
 
     const modulePromises = modules.map(module => {
-        return fetch(`https://cdn.jsdelivr.net/${module}/package.json`)
-            .then(res => res.json())
+        return fetchPackageJson(module)
             .then(moduleJson => {
                 console
                 let moduleData;
@@ -30,7 +52,8 @@ function loadModules() {
                         moduleType: moduleMetadata.type,
                         packageType: moduleJson.packageType,
                         description: moduleJson.description,
-                        serviceFile: moduleJson.serviceFile
+                        serviceFile: moduleJson.serviceFile,
+                        dev: isDev
                     }
                 } else if (moduleJson.packageType === 'mods') {
                     moduleData = {
@@ -46,7 +69,8 @@ function loadModules() {
                         serviceFile: moduleJson.serviceFile,
                         tizenAppId: moduleJson.tizenAppId,
                         mainFile: moduleJson.main,
-                        evaluateScriptOnDocumentStart: moduleJson.evaluateScriptOnDocumentStart
+                        evaluateScriptOnDocumentStart: moduleJson.evaluateScriptOnDocumentStart,
+                        dev: isDev
                     }
                 } else return {
                     appName: 'Unknown Module',

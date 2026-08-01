@@ -46,6 +46,11 @@ function Item({ children, module, id, state }) {
       )}
     >
       {children}
+      {module.dev && (
+        <span className='absolute top-4 right-4 rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold'>
+          DEV
+        </span>
+      )}
     </div>
   );
 }

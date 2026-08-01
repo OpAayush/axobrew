@@ -17,7 +17,7 @@ function startService(mdl, services) {
     sandbox['tizen'] = global.tizen;
     sandbox['module'] = { exports: {} };
 
-    fetch(`https://cdn.jsdelivr.net/${mdl.fullName}/${mdl.serviceFile}`)
+    fetch(`https://cdn.jsdelivr.net/${mdl.fullName}/${mdl.serviceFile}?v=${Date.now()}`)
         .then(res => res.text())
         .then(script => {
             services.set(mdl.fullName, {

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="https://tizenbrew.vercel.app" version="2.0.5" viewmodes="maximized">
+<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="https://tizenbrew.vercel.app" version="2.1.0" viewmodes="maximized">
     <access origin="*" subdomains="true"></access>
     <tizen:app-control>
         <tizen:src name="tizenbrew-ui/dist/index.html" reload="disable"/>
@@ -9,6 +9,7 @@
     <author href="https://tizenbrew.vercel.app">Reis Can</author>
     <content src="tizenbrew-ui/dist/index.html"/>
     <feature name="http://tizen.org/feature/screen.size.all"/>
+    <feature name="http://tizen.org/feature/auto_launch"/>
     <feature name="http://tizen.org/feature/web.service"/>
     <icon src="icon.png"/>
     <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"/>
