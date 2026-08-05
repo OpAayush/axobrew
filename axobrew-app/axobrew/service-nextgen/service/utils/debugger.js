@@ -54,6 +54,27 @@ function getModuleScript(mdl) {
     return attempt;
 }
 
+// A single page load usually creates one execution context for the module
+// page, so the user script gets exactly one fetch attempt. If that first
+// fetch fails (slow dev server cold start) this retries on the same context
+// with growing delays instead of giving up until the next page load. Users
+// used to hold the enter button for a few seconds to force this by accident
+// (every repeat click re-created the context and re-fetched the script).
+function injectModuleScript(client, mdl, contextId, retriesLeft) {
+    const cache = mdl.dev ? null : modulesCache.get(mdl.fullName);
+    if (cache) return safeEvaluate(client, cache, contextId);
+    getModuleScript(mdl).then(modFile => {
+        modulesCache.set(mdl.fullName, modFile);
+        safeEvaluate(client, modFile, contextId);
+    }).catch(e => {
+        if (retriesLeft <= 0) {
+            return safeEvaluate(client, `alert("Failed to load module: '${mdl.fullName}'. Please relaunch axobrew to try again.")`, contextId);
+        }
+        console.error('Userscript fetch failed, retrying (' + retriesLeft + ' left). ' + (e.message || e));
+        setTimeout(() => injectModuleScript(client, mdl, contextId, retriesLeft - 1), [1000, 2000, 4000, 8000][4 - retriesLeft] || 8000);
+    });
+}
+
 function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appControlData, isAnotherApp, attempts) {
     if (!attempts) attempts = 1;
     if (!isAnotherApp) inDebug.tizenDebug = true;
@@ -64,17 +85,7 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
 
             client.on('Runtime.executionContextCreated', (msg) => {
                 if (!mdl.evaluateScriptOnDocumentStart && mdl.name !== '') {
-                    const cache = mdl.dev ? null : modulesCache.get(mdl.fullName);
-                    if (cache) {
-                        safeEvaluate(client, cache, msg.context.id);
-                    } else {
-                        getModuleScript(mdl).then(modFile => {
-                            modulesCache.set(mdl.fullName, modFile);
-                            safeEvaluate(client, modFile, msg.context.id);
-                        }).catch(e => {
-                            safeEvaluate(client, `alert("Failed to load module: '${mdl.fullName}'. Please relaunch axobrew to try again.")`, msg.context.id);
-                        });
-                    }
+                    injectModuleScript(client, mdl, msg.context.id, 4);
                 } else if (mdl.name !== '' && mdl.evaluateScriptOnDocumentStart) {
                     const cache = mdl.dev ? null : modulesCache.get(mdl.fullName);
                     const clientConnection = clientConn.get('wsConn');
