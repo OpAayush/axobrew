@@ -5,7 +5,7 @@
         <tizen:src name="axobrew-ui/dist/index.html" reload="disable"/>
         <tizen:operation name="http://samsung.com/appcontrol/operation/eden_resume"/>
     </tizen:app-control>
-    <tizen:application id="axobrew.AxoBrewStandalone" package="axobrew" required_version="3.0"/>
+    <tizen:application id="axobrewapp.AxoBrewStandalone" package="axobrewapp" required_version="3.0"/>
     <author href="https://axobrew.vercel.app">Aayu5h</author>
     <content src="axobrew-ui/dist/index.html"/>
     <feature name="http://tizen.org/feature/screen.size.all"/>
@@ -32,7 +32,7 @@
     <tizen:privilege name="http://tizen.org/privilege/unlimitedstorage"/>
     <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
     <tizen:profile name="tv-samsung"/>
-    <tizen:service id="axobrew.StandaloneService">
+    <tizen:service id="axobrewapp.StandaloneService">
         <tizen:content src="service-nextgen/service/dist/index.js"/>
         <tizen:name>axobrewService</tizen:name>
         <tizen:description>axobrewService</tizen:description>
