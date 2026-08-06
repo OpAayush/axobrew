@@ -105,7 +105,12 @@ class Client {
                         payload: true
                     });
 
-                    const tvIP = webapis.network.getIp();
+                    let tvIP = '';
+                    try {
+                        tvIP = webapis.network.getIp();
+                    } catch (e) {
+                        console.error('getIp failed: ' + e);
+                    }
                     this.send({
                         type: Events.ReLaunchInDebug,
                         payload: {

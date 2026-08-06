@@ -1,0 +1,15 @@
+{
+  "presets": [
+    ["@babel/preset-env", {
+      "targets": {
+        "node": "4.4"
+      }
+    }]
+  ],
+  "ignore": [
+    "node_modules/@babel/",
+    "node_modules/adbhost/",
+    "node_modules/has-symbols/",
+    "node_modules/node-fetch/"
+  ]
+}

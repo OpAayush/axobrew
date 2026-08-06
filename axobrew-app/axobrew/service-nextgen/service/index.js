@@ -235,11 +235,14 @@ module.exports.onStart = function () {
             console.log('ADB connection established');
             //Launch app
             const tbPackageId = tizen.application.getAppInfo().packageId;
+            console.log('Relaunching app in debug: ' + tbPackageId + '.AxoBrewStandalone');
             const shellCmd = adbClient.createStream(`shell:0 debug ${tbPackageId}.AxoBrewStandalone${isTizen3 ? ' 0' : ''}`);
             shellCmd.on('data', function dataIncoming(data) {
                 const dataString = data.toString();
+                console.log('ADB debug output: ' + dataString);
                 if (dataString.includes('debug')) {
                     const port = Number(dataString.substr(dataString.indexOf(':') + 1, 6).replace(' ', ''));
+                    console.log('Debug port parsed: ' + port);
                     startDebugging(port, queuedEvents, services, ip, mdl, inDebug, appControlData, false);
                     setTimeout(() => adbClient._stream.end(), 1000);
                 }
@@ -329,9 +332,15 @@ module.exports.onStart = function () {
                         }
                     }
                     prefetchModule(currentModule.fullName ? currentModule : null);
+                    // The UI exits itself ~2.2s after sending this event. The
+                    // debug relaunch must only run once the app process is
+                    // fully gone: running 'debug <appId>' against a live app
+                    // kills it but the shell stream carrying the debug port
+                    // dies with it, so the debugger never attaches and every
+                    // relaunched instance repeats the relaunch cycle.
                     setTimeout(() => {
                         createAdbConnection(payload.tvIP, currentModule, 1);
-                    }, 1000);
+                    }, 3000);
                     break;
                 }
                 case Events.GetModules: {
