@@ -120,9 +120,9 @@ class Client {
 
                     setTimeout(() => tizen.application.getCurrentApplication().exit(), 2200);
                 } else if (payload === null) {
-                    this.send({
+                    setTimeout(() => this.send({
                         type: Events.CanLaunchInDebug
-                    });
+                    }), 2000);
                 }
                 else {
                     this.context.dispatch({
@@ -189,6 +189,14 @@ class Client {
                     this.handleCanLaunchModules(payload);
                 }
 
+                break;
+            }
+
+            case Events.GetLogs: {
+                this.context.dispatch({
+                    type: 'SET_LOGS',
+                    payload: payload
+                });
                 break;
             }
 

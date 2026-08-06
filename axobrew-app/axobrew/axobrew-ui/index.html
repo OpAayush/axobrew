@@ -6,6 +6,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>axobrew</title>
     <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
+    <script>
+      (function () {
+        if (typeof Object.fromEntries === 'undefined') {
+          Object.fromEntries = function (iterable) {
+            var obj = {}, i = 0, item;
+            if (iterable && typeof iterable.length === 'number') {
+              for (i = 0; i < iterable.length; i++) {
+                item = iterable[i];
+                if (item && item.length >= 2) obj[item[0]] = item[1];
+              }
+            } else if (iterable && typeof iterable[Symbol.iterator] === 'function') {
+              var it = iterable[Symbol.iterator](), step;
+              while (!(step = it.next()).done) {
+                item = step.value;
+                if (item && item.length >= 2) obj[item[0]] = item[1];
+              }
+            }
+            return obj;
+          };
+        }
+        if (typeof Object.entries === 'undefined') {
+          Object.entries = function (obj) {
+            var arr = [], key;
+            for (key in obj) {
+              if (Object.prototype.hasOwnProperty.call(obj, key)) arr.push([key, obj[key]]);
+            }
+            return arr;
+          };
+        }
+        if (typeof Object.values === 'undefined') {
+          Object.values = function (obj) {
+            var arr = [], key;
+            for (key in obj) {
+              if (Object.prototype.hasOwnProperty.call(obj, key)) arr.push(obj[key]);
+            }
+            return arr;
+          };
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
