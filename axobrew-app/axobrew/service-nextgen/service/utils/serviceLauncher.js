@@ -3,6 +3,8 @@
 const vm = require('vm');
 const { getDevResourceUrl } = require('./devServer.js');
 const { fetchTextWithRetry } = require('./network.js');
+const { getServiceText } = require('./prefetch.js');
+const { setService } = require('./moduleHealth.js');
 
 function startService(mdl, services) {
     let sandbox = {};
@@ -25,6 +27,23 @@ function startService(mdl, services) {
     fetchService(mdl, services, sandbox, serviceUrl, 0);
 }
 
+function runServiceScript(mdl, services, sandbox, script) {
+    const entry = services.get(mdl.fullName);
+    if (!entry) return;
+    entry.loading = false;
+    entry.context = vm.createContext(sandbox);
+
+    try {
+        vm.runInContext(script, entry.context);
+        setService(mdl.fullName, 'running');
+    } catch (e) {
+        console.error('Service crashed: ' + (e.message || e));
+        entry.hasCrashed = true;
+        entry.error = e;
+        setService(mdl.fullName, 'crashed', e);
+    }
+}
+
 // If the first fetch fails (slow dev server cold start), keep retrying in
 // the background with growing delays so a single module click is enough.
 // Previously the service only got one shot and sat as 'crashed' until the
@@ -38,6 +57,7 @@ function fetchService(mdl, services, sandbox, serviceUrl, attempt) {
             error: new Error('Dev server is disabled.'),
             loading: false
         });
+        setService(mdl.fullName, 'crashed', new Error('Dev server is disabled.'));
         return;
     }
 
@@ -50,24 +70,21 @@ function fetchService(mdl, services, sandbox, serviceUrl, attempt) {
         error: null,
         loading: true
     });
+    setService(mdl.fullName, 'loading');
+
+    // A prefetched copy (module tile was focused earlier) starts instantly.
+    const prefetched = getServiceText(mdl);
+    if (prefetched) {
+        runServiceScript(mdl, services, sandbox, prefetched);
+        return;
+    }
 
     // The response is verified (HTTP 200) before the body is read: a 404 or
     // error page must never be run as a service. Dev service fetches retry
     // twice with backoff for slow local server cold starts.
     fetchTextWithRetry(serviceUrl, 15000, mdl.dev ? 2 : 1, mdl.dev ? 'dev service' : 'service')
         .then(script => {
-            const entry = services.get(mdl.fullName);
-            if (!entry) return;
-            entry.loading = false;
-            entry.context = vm.createContext(sandbox);
-
-            try {
-                vm.runInContext(script, entry.context);
-            } catch (e) {
-                console.error('Service crashed: ' + (e.message || e));
-                entry.hasCrashed = true;
-                entry.error = e;
-            }
+            runServiceScript(mdl, services, sandbox, script);
         }).catch(e => {
             if (services.has(mdl.fullName)) {
                 services.get(mdl.fullName).loading = false;
@@ -81,6 +98,7 @@ function fetchService(mdl, services, sandbox, serviceUrl, attempt) {
                     loading: false
                 });
             }
+            setService(mdl.fullName, 'failed', e);
             if (attempt < 5) {
                 const delay = [2000, 5000, 10000, 20000][attempt] || 30000;
                 console.error('Service fetch failed, retrying in ' + delay + 'ms (' + (5 - attempt) + ' retries left). ' + (e.message || e));

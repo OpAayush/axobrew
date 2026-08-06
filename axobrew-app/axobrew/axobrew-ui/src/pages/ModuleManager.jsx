@@ -6,6 +6,7 @@ import { useLocation } from 'preact-iso';
 import { useTranslation } from 'react-i18next';
 import { PlusIcon, ArrowPathIcon, CheckIcon } from '@heroicons/react/16/solid';
 import Tile, { TILE_BASE } from '../components/Tile.jsx';
+import HealthChips from '../components/HealthChips.jsx';
 
 function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
@@ -20,6 +21,10 @@ function Item({ module, id, state, dispatch, shouldFocus }) {
                 behavior: 'auto',
                 block: 'center',
                 inline: 'center',
+            });
+            state.client?.send({
+                type: Events.PrefetchModule,
+                payload: module.fullName
             });
         }
     }, [focused, ref]);
@@ -77,6 +82,9 @@ function Item({ module, id, state, dispatch, shouldFocus }) {
             <p className='mt-4 text-[calc(var(--uh)*2)] leading-relaxed text-gray-400'>
                 {module.description}
             </p>
+            <div className='mt-5 flex-1 flex items-end'>
+                <HealthChips health={state?.sharedData?.moduleHealth ? state.sharedData.moduleHealth[module.fullName] : null} hasService={!!module.serviceFile} />
+            </div>
         </div>
     );
 }

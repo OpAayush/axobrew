@@ -11,7 +11,8 @@ import './components/i18n.js';
 import UserAgentSettings from './pages/UserAgentSettings.jsx';
 import LanguageSettings from './pages/LanguageSettings.jsx';
 import DevServerSettings from './pages/DevServerSettings.jsx';
-import { ExclamationCircleIcon } from '@heroicons/react/16/solid';
+import Logs from './pages/Logs.jsx';
+import { ExclamationCircleIcon, RocketLaunchIcon } from '@heroicons/react/16/solid';
 import { useTranslation } from 'react-i18next';
 
 export default function App() {
@@ -41,10 +42,28 @@ export default function App() {
     }
   }, []);
 
+  // Safety net: if the app is told it will relaunch (CanLaunchInDebug) but
+  // never exits, drop the overlay so the UI stays usable.
+  useEffect(() => {
+    if (!context.state.sharedData.relaunching) return;
+    const timer = setTimeout(() => {
+      context.dispatch({ type: 'SET_RELAUNCHING', payload: false });
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [context.state.sharedData.relaunching]);
+
 
   return (
     <ErrorBoundary>
       <LocationProvider>
+        {context.state.sharedData.relaunching && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-ink-950">
+            <div className="absolute -inset-16 rounded-full bg-brew-amber/10 blur-3xl" />
+            <RocketLaunchIcon className="h-[calc(var(--uh)*14)] w-[calc(var(--uh)*14)] text-brew-amber" />
+            <h1 className="text-[calc(var(--uh)*4)] font-semibold text-white">{t('relaunch.title')}</h1>
+            <p className="text-[calc(var(--uh)*2)] text-gray-400">{t('relaunch.desc')}</p>
+          </div>
+        )}
         <div className="flex flex-col h-[calc(var(--uh)*100)] overflow-hidden">
           <Header />
           <div className="flex-1 min-h-0 overflow-y-auto text-white">
@@ -65,6 +84,7 @@ export default function App() {
               <Route component={UserAgentSettings} path="/axobrew-ui/dist/index.html/settings/change-ua" />
               <Route component={LanguageSettings} path="/axobrew-ui/dist/index.html/settings/language" />
               <Route component={DevServerSettings} path="/axobrew-ui/dist/index.html/settings/devserver" />
+              <Route component={Logs} path="/axobrew-ui/dist/index.html/settings/logs" />
               <Route component={About} path="/axobrew-ui/dist/index.html/about" />
             </Router>
           </div>

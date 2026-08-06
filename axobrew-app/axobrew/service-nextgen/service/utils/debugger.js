@@ -5,6 +5,8 @@ const { Events } = require('./wsCommunication.js');
 const { readConfig } = require('./configuration.js');
 const WebSocket = require('ws');
 const { fetchTextWithRetry } = require('./network.js');
+const { getScriptText } = require('./prefetch.js');
+const { setUserscript } = require('./moduleHealth.js');
 
 const modulesCache = new Map();
 
@@ -39,6 +41,16 @@ function getModuleScriptUrl(mdl) {
 // backoff; the dev server is on the local network and slow cold starts
 // (Windows Defender scanning http-server's first read) need the extra time.
 function getModuleScript(mdl) {
+    // A prefetched copy (module tile was focused or the autostart module was
+    // preloaded while relaunching) is used as-is to make a single tap reliable.
+    const prefetched = getScriptText(mdl);
+    if (prefetched) {
+        if (mdl.dev) {
+            moduleScriptCache.dev = prefetched;
+            moduleScriptCache.at = Date.now();
+        }
+        return Promise.resolve(prefetched);
+    }
     if (mdl.dev && moduleScriptCache.dev && Date.now() - moduleScriptCache.at < 5000) {
         return Promise.resolve(moduleScriptCache.dev);
     }
@@ -65,9 +77,12 @@ function injectModuleScript(client, mdl, contextId, retriesLeft) {
     if (cache) return safeEvaluate(client, cache, contextId);
     getModuleScript(mdl).then(modFile => {
         modulesCache.set(mdl.fullName, modFile);
-        safeEvaluate(client, modFile, contextId);
+        return safeEvaluate(client, modFile, contextId);
+    }).then(() => {
+        setUserscript(mdl.fullName, 'ok');
     }).catch(e => {
         if (retriesLeft <= 0) {
+            setUserscript(mdl.fullName, 'failed', e);
             return safeEvaluate(client, `alert("Failed to load module: '${mdl.fullName}'. Please relaunch axobrew to try again.")`, contextId);
         }
         console.error('Userscript fetch failed, retrying (' + retriesLeft + ' left). ' + (e.message || e));
@@ -95,9 +110,11 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
                     } else {
                         getModuleScript(mdl).then(modFile => {
                             modulesCache.set(mdl.fullName, modFile);
+                            setUserscript(mdl.fullName, 'ok');
                             sendClientInformation(clientConn, clientConnection.Event(Events.LaunchModule, mdl.name));
                             client.Page.addScriptToEvaluateOnNewDocument({ expression: modFile });
                         }).catch(e => {
+                            setUserscript(mdl.fullName, 'failed', e);
                             sendClientInformation(clientConn, clientConnection.Event(Events.LaunchModule, mdl.name));
                             client.Page.addScriptToEvaluateOnNewDocument({ expression: `alert("Failed to load module: '${mdl.fullName}'. Please relaunch axobrew to try again.")` });
                         });

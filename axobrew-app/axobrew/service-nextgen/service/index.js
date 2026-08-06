@@ -12,12 +12,42 @@ module.exports.onStart = function () {
     const startService = require('./utils/serviceLauncher.js');
     const { getDevResourceUrl, getDevServerConfig } = require('./utils/devServer.js');
     const { Connection, Events } = require('./utils/wsCommunication.js');
+    const { getHealth } = require('./utils/moduleHealth.js');
+    const { prefetchModule } = require('./utils/prefetch.js');
     let WebSocket;
     if (process.version === 'v4.4.3') {
         WebSocket = require('ws-old');
     } else {
         WebSocket = require('ws-new');
     }
+
+    // In-app log viewer: keep a ring buffer of every console call so the UI
+    // can show what the service is doing. Logging can be turned off from
+    // Settings; the buffer stays but stops growing.
+    const LOG_LIMIT = 500;
+    const logBuffer = [];
+    let logsEnabled = readConfig().logsEnabled !== false;
+    function pushLog(level, args) {
+        if (!logsEnabled) return;
+        const parts = [];
+        for (let i = 0; i < args.length; i++) {
+            let val = args[i];
+            if (typeof val === 'object' && val !== null) {
+                try { val = JSON.stringify(val); } catch (e) { val = String(val); }
+            }
+            parts.push(String(val));
+        }
+        logBuffer.push({ time: Date.now(), level: level, msg: parts.join(' ').slice(0, 1000) });
+        while (logBuffer.length > LOG_LIMIT) logBuffer.shift();
+    }
+    (function patchConsole() {
+        const origLog = console.log;
+        const origError = console.error;
+        const origWarn = console.warn;
+        console.log = function () { pushLog('info', arguments); origLog.apply(console, arguments); };
+        console.error = function () { pushLog('error', arguments); origError.apply(console, arguments); };
+        console.warn = function () { pushLog('warn', arguments); origWarn.apply(console, arguments); };
+    })();
 
 
     const app = express();
@@ -130,7 +160,8 @@ module.exports.onStart = function () {
     const getModulesPayload = (modules) => {
         return {
             modules: modules,
-            devServer: getDevServerConfig()
+            devServer: getDevServerConfig(),
+            health: getHealth()
         };
     };
 
@@ -174,6 +205,13 @@ module.exports.onStart = function () {
                     const service = modules.find(m => m.fullName === module || m.name === module);
                     if (service) startService(service, services);
                 });
+            }
+            // Warm the autostart module's script+service so the relaunch
+            // window is fast when the app opens itself in debug mode.
+            const launchConfig = readConfig();
+            if (launchConfig.autoLaunchModule) {
+                const autostart = modules.find(m => m.fullName === launchConfig.autoLaunchModule);
+                if (autostart) prefetchModule(autostart);
             }
         });
     };
@@ -290,6 +328,7 @@ module.exports.onStart = function () {
                             if (module) fillCurrentModule(module);
                         }
                     }
+                    prefetchModule(currentModule.fullName ? currentModule : null);
                     setTimeout(() => {
                         createAdbConnection(payload.tvIP, currentModule, 1);
                     }, 1000);
@@ -325,6 +364,7 @@ module.exports.onStart = function () {
                 case Events.LaunchModule: {
                     fillCurrentModule(payload);
                     const mdl = payload;
+                    prefetchModule(mdl);
 
                     if (mdl.packageType === 'app') {
                         inDebug.webDebug = false;
@@ -399,6 +439,27 @@ module.exports.onStart = function () {
                             break;
                         }
                     }
+                    break;
+                }
+                case Events.PrefetchModule: {
+                    if (payload && modulesCache) {
+                        const module = modulesCache.find(m => m.fullName === payload);
+                        if (module) prefetchModule(module);
+                    }
+                    break;
+                }
+                case Events.GetLogs: {
+                    if (payload && typeof payload.enabled === 'boolean') {
+                        logsEnabled = payload.enabled;
+                        const config = readConfig();
+                        config.logsEnabled = logsEnabled;
+                        try {
+                            writeConfig(config);
+                        } catch (e) {
+                            console.error('Failed to save logs config. ' + e);
+                        }
+                    }
+                    wsConn.send(wsConn.Event(Events.GetLogs, { enabled: logsEnabled, logs: logBuffer }));
                     break;
                 }
                 case Events.Ready: {

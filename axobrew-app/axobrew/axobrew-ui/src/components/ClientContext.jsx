@@ -13,6 +13,9 @@ const initialState = {
         devServer: null,
         addingModule: null,
         removingModules: [],
+        relaunching: false,
+        moduleHealth: null,
+        logs: null,
         error: {
             message: null,
             dissapear: false
@@ -36,6 +39,12 @@ function reducer(state, action) {
             return { ...state, sharedData: { ...state.sharedData, state: action.payload } };
         case 'SET_DEV_SERVER':
             return { ...state, sharedData: { ...state.sharedData, devServer: action.payload } };
+        case 'SET_MODULE_HEALTH':
+            return { ...state, sharedData: { ...state.sharedData, moduleHealth: action.payload } };
+        case 'SET_RELAUNCHING':
+            return { ...state, sharedData: { ...state.sharedData, relaunching: action.payload } };
+        case 'SET_LOGS':
+            return { ...state, sharedData: { ...state.sharedData, logs: action.payload } };
         case 'SET_ADDING_MODULE':
             return { ...state, sharedData: { ...state.sharedData, addingModule: action.payload } };
         case 'SET_REMOVING_MODULES':

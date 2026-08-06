@@ -11,7 +11,9 @@ const Events = {
     Error: 8,
     CanLaunchModules: 9,
     ModuleAction: 10,
-    SetDevServer: 11
+    SetDevServer: 11,
+    GetLogs: 12,
+    PrefetchModule: 13
 };
 
 class Client {
@@ -96,6 +98,13 @@ class Client {
 
             case Events.CanLaunchInDebug: {
                 if (payload) {
+                    // Show the relaunch screen while we hand control back to
+                    // the service, which reopens axobrew in debug mode.
+                    this.context.dispatch({
+                        type: 'SET_RELAUNCHING',
+                        payload: true
+                    });
+
                     const tvIP = webapis.network.getIp();
                     this.send({
                         type: Events.ReLaunchInDebug,
@@ -104,7 +113,7 @@ class Client {
                         }
                     });
 
-                    tizen.application.getCurrentApplication().exit();
+                    setTimeout(() => tizen.application.getCurrentApplication().exit(), 2200);
                 } else if (payload === null) {
                     this.send({
                         type: Events.CanLaunchInDebug
@@ -130,11 +139,19 @@ class Client {
 
                 const moduleList = Array.isArray(payload) ? payload : payload.modules;
                 const devServer = Array.isArray(payload) ? null : (payload.devServer || null);
+                const health = Array.isArray(payload) ? null : (payload.health || null);
 
                 if (devServer) {
                     this.context.dispatch({
                         type: 'SET_DEV_SERVER',
                         payload: devServer
+                    });
+                }
+
+                if (health) {
+                    this.context.dispatch({
+                        type: 'SET_MODULE_HEALTH',
+                        payload: health
                     });
                 }
 
@@ -248,7 +265,7 @@ class Client {
         }
     }
 
-    send(data) {
+        send(data) {
         this.socket.send(JSON.stringify(data));
     }
 }

@@ -8,6 +8,7 @@ function readConfig() {
             modules: ["npm/@foxreis/tizentube"],
             autoLaunchServiceList: [],
             autoLaunchModule: '', 
+            logsEnabled: true,
         };
     }
     try {
@@ -18,6 +19,7 @@ function readConfig() {
             modules: ["npm/@foxreis/tizentube"],
             autoLaunchServiceList: [],
             autoLaunchModule: '',
+            logsEnabled: true,
         };
     }
 }

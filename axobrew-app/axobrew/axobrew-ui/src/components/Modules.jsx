@@ -5,6 +5,7 @@ import { Events } from './WebSocketClient.js';
 import { useTranslation } from 'react-i18next';
 import { ArchiveBoxIcon } from '@heroicons/react/16/solid';
 import Tile, { TILE_BASE } from './Tile.jsx';
+import HealthChips from './HealthChips.jsx';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
@@ -18,6 +19,12 @@ function Item({ children, module, id, state, shouldFocus }) {
         behavior: 'auto',
         block: 'center',
         inline: 'center',
+      });
+      // Prefetch the user script + service while the user is looking at the
+      // tile, so pressing enter loads instantly.
+      state.client?.send({
+        type: Events.PrefetchModule,
+        payload: module.fullName
       });
     }
   }, [focused, ref]);
@@ -59,6 +66,7 @@ function Item({ children, module, id, state, shouldFocus }) {
 }
 
 function ModuleCard({ module, id, state }) {
+  const health = state?.sharedData?.moduleHealth ? state.sharedData.moduleHealth[module.fullName] : null;
   return (
     <Item module={module} id={id} state={state} shouldFocus={id === 0}>
       <span className='inline-flex items-center rounded-md bg-brew-cyan/10 ring-1 ring-brew-cyan/25 px-2.5 py-1 text-[calc(var(--uh)*1.6)] font-semibold tracking-widest text-brew-cyan'>
@@ -77,6 +85,9 @@ function ModuleCard({ module, id, state }) {
       <p className='mt-4 text-[calc(var(--uh)*2)] leading-relaxed text-gray-400'>
         {module.description}
       </p>
+      <div className='mt-5 flex-1 flex items-end'>
+        <HealthChips health={health} hasService={!!module.serviceFile} />
+      </div>
     </Item>
   );
 }
@@ -97,6 +108,16 @@ export default function Modules() {
   const { t } = useTranslation();
 
   const modules = state?.sharedData?.modules;
+
+  // Patch the health chips while the module page is running: poll the service
+  // every few seconds for the (cheap) module list refresh that carries health.
+  useEffect(() => {
+    if (!state?.client) return;
+    const interval = setInterval(() => {
+      state.client.send({ type: Events.GetModules });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [state?.client]);
 
   return (
     <div className="relative isolate lg:px-8">

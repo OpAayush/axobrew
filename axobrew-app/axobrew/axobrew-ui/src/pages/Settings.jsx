@@ -4,7 +4,7 @@ import { GlobalStateContext } from '../components/ClientContext.jsx';
 import { Events } from '../components/WebSocketClient.js';
 import { useLocation } from 'preact-iso';
 import { useTranslation } from 'react-i18next';
-import { Cog6ToothIcon, RocketLaunchIcon, ArrowPathIcon, GlobeAltIcon, ServerIcon } from '@heroicons/react/16/solid';
+import { Cog6ToothIcon, RocketLaunchIcon, ArrowPathIcon, GlobeAltIcon, ServerIcon, DocumentTextIcon } from '@heroicons/react/16/solid';
 import Tile from '../components/Tile.jsx';
 
 function SettingTile({ icon, iconColor, title, desc, onClick, shouldFocus }) {
@@ -72,6 +72,14 @@ export default function Settings() {
                     desc={t('settings.devServerDesc')}
                     onClick={() => {
                         loc.route('/axobrew-ui/dist/index.html/settings/devserver');
+                    }}
+                />
+                <SettingTile
+                    icon={<DocumentTextIcon className='h-[calc(var(--uh)*4.5)] w-[calc(var(--uh)*4.5)] text-brew-amber' />}
+                    title={t('settings.logs')}
+                    desc={t('settings.logsDesc')}
+                    onClick={() => {
+                        loc.route('/axobrew-ui/dist/index.html/settings/logs');
                     }}
                 />
             </div>

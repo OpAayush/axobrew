@@ -29,7 +29,9 @@ const Events = {
     Error: 8,
     CanLaunchModules: 9,
     ModuleAction: 10,
-    SetDevServer: 11
+    SetDevServer: 11,
+    GetLogs: 12,
+    PrefetchModule: 13
 };
 
 module.exports = {
