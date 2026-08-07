@@ -113,23 +113,26 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
           injectModuleScript(client, mdl, msg.context.id, 4);
         } else if (mdl.name !== '' && mdl.evaluateScriptOnDocumentStart) {
           var cache = mdl.dev ? null : modulesCache.get(mdl.fullName);
-          var clientConnection = clientConn.get('wsConn');
+          var launchEvent = {
+            type: Events.LaunchModule,
+            payload: mdl.name
+          };
           if (cache) {
             client.Page.addScriptToEvaluateOnNewDocument({
               expression: cache
             });
-            sendClientInformation(clientConn, clientConnection.Event(Events.LaunchModule, mdl.name));
+            sendClientInformation(clientConn, launchEvent);
           } else {
             getModuleScript(mdl).then(function (modFile) {
               modulesCache.set(mdl.fullName, modFile);
               setUserscript(mdl.fullName, 'ok');
-              sendClientInformation(clientConn, clientConnection.Event(Events.LaunchModule, mdl.name));
+              sendClientInformation(clientConn, launchEvent);
               client.Page.addScriptToEvaluateOnNewDocument({
                 expression: modFile
               });
             }).catch(function (e) {
               setUserscript(mdl.fullName, 'failed', e);
-              sendClientInformation(clientConn, clientConnection.Event(Events.LaunchModule, mdl.name));
+              sendClientInformation(clientConn, launchEvent);
               client.Page.addScriptToEvaluateOnNewDocument({
                 expression: `alert("Failed to load module: '${mdl.fullName}'. Please relaunch axobrew to try again.")`
               });
@@ -153,25 +156,30 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
         mdl.evaluateScriptOnDocumentStart = false;
       });
       if (!isAnotherApp) {
-        var clientConnection = clientConn.get('wsConn');
         if (appControlData.module) {
-          var data = clientConnection.Event(Events.CanLaunchModules, {
-            type: 'appControl',
-            module: appControlData.module,
-            args: appControlData.args
+          sendClientInformation(clientConn, {
+            type: Events.CanLaunchModules,
+            payload: {
+              type: 'appControl',
+              module: appControlData.module,
+              args: appControlData.args
+            }
           });
-          sendClientInformation(clientConn, data);
         } else {
           var config = readConfig();
           if (config.autoLaunchModule) {
-            var _data = clientConnection.Event(Events.CanLaunchModules, {
-              type: 'autolaunch',
-              module: config.autoLaunchModule
+            sendClientInformation(clientConn, {
+              type: Events.CanLaunchModules,
+              payload: {
+                type: 'autolaunch',
+                module: config.autoLaunchModule
+              }
             });
-            sendClientInformation(clientConn, _data);
           } else {
-            var _data2 = clientConnection.Event(Events.CanLaunchModules, null);
-            sendClientInformation(clientConn, _data2);
+            sendClientInformation(clientConn, {
+              type: Events.CanLaunchModules,
+              payload: null
+            });
           }
         }
       }
@@ -180,7 +188,7 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
     }).on('error', function (err) {
       if (attempts >= 45) {
         if (!isAnotherApp) {
-          clientConn.send(clientConn.Event(Events.Error, 'Failed to connect to the debugger'));
+          sendError(clientConn);
           inDebug.tizenDebug = false;
           return;
         } else return;
@@ -193,7 +201,7 @@ function startDebugging(port, queuedEvents, clientConn, ip, mdl, inDebug, appCon
   } catch (e) {
     if (attempts >= 45) {
       if (!isAnotherApp) {
-        clientConn.send(clientConn.Event(Events.Error, 'Failed to connect to the debugger'));
+        sendError(clientConn);
         inDebug.tizenDebug = false;
         return;
       } else return;
@@ -220,5 +228,11 @@ function sendClientInformation(clientConn, data) {
   setTimeout(function () {
     clientConnection.send(data);
   }, 500);
+}
+function sendError(clientConn) {
+  var clientConnection = clientConn.get('wsConn');
+  if (clientConnection && clientConnection.send) {
+    clientConnection.send(clientConnection.Event(Events.Error, 'Failed to connect to the debugger'));
+  }
 }
 module.exports = startDebugging;
